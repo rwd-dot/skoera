@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="fo">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Skøra – boða frá</title>
+<meta name="description" content="Sært tú skøru? Tak mynd og boða frá, so kann hon verða burturbeind.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌼</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Karla:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header><h1>Skøra<small>Sært tú ókrút? Boða frá.</small></h1></header>
+
+  <form id="form" onsubmit="return false">
+    <label class="shot" id="shot">
+      <input type="file" id="photo" accept="image/*" capture="environment">
+      <div class="empty" id="shotEmpty">
+        <div>
+          <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 22h10l5-7h18l5 7h10v30H8z"/><circle cx="32" cy="36" r="10"/></svg>
+          <b>Tak mynd av plantuni</b>
+          <div class="hint">Kom so tætt, at blómur og bløð síggjast væl</div>
+        </div>
+      </div>
+      <img id="preview" alt="Mynd av plantuni" hidden>
+      <span class="retake" id="retake" hidden>Tak nýggja mynd</span>
+    </label>
+
+    <div class="ai" id="aiBox" hidden></div>
+    <div style="margin-top:10px" id="aiBtnWrap" hidden>
+      <button type="button" class="secondary" id="aiBtn">Hvat planta er hetta?</button>
+    </div>
+
+    <div class="field">
+      <span>Staður</span>
+      <div class="loc" id="loc">
+        <div class="dot"></div>
+        <div class="txt"><div id="locMain">Finni staðið…</div><div class="hint" id="locSub"></div></div>
+        <button type="button" class="linkbtn" id="locRetry">Royn aftur</button>
+      </div>
+      <input type="text" id="place" maxlength="200" placeholder="Staðarnavn, t.d. við ánna í Hoyvík" style="margin-top:8px" aria-label="Staðarnavn">
+      <div class="hint">Skriva staðarnavn um GPS ikki riggar, ella fyri at gera tað greiðari.</div>
+    </div>
+
+    <div class="field">
+      <label for="desc"><span>Frágreiðing</span></label>
+      <textarea id="desc" maxlength="2000" placeholder="Hvussu nógv er har? Veksur tað við vegin, í haganum, í einum urtagarði?"></textarea>
+    </div>
+
+    <div class="ts" id="ts"></div>
+    <button class="primary" id="send" type="button" disabled>Send fráboðan</button>
+    <div class="msg" id="sendMsg" role="status"></div>
+  </form>
+
+  <div class="thanks" id="thanks" hidden>
+    <svg viewBox="0 0 84 84" fill="none" aria-hidden="true"><circle cx="42" cy="42" r="38" fill="var(--moss)"/><path d="M26 43l11 11 21-24" stroke="var(--moss-ink)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <h2>Takk fyri!</h2>
+    <p>Fráboðanin er send.</p>
+    <button class="primary" id="again" type="button">Boða frá aftur</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  let photoBlob = null, coords = null, aiResult = null, cfg = {}, tsWidget = null, tsToken = '';
+
+  // ---------- config + Turnstile ----------
+  fetch('/api/config').then(r => r.json()).then(c => {
+    cfg = c;
+    if (c.turnstileSiteKey){
+      window.onTsLoad = () => {
+        tsWidget = turnstile.render('#ts', {
+          sitekey: c.turnstileSiteKey, language: 'da', appearance: 'interaction-only',
+          callback: t => { tsToken = t; validate(); },
+          'expired-callback': () => { tsToken = ''; validate(); },
+        });
+      };
+      const s = document.createElement('script');
+      s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTsLoad&render=explicit';
+      s.async = true; document.head.append(s);
+    }
+    validate();
+  }).catch(() => {});
+
+  // ---------- photo ----------
+  function compress(file){
+    return new Promise((res, rej) => {
+      const img = new Image();
+      img.onload = () => {
+        let max = 1600, q = 0.8, done = false;
+        const attempt = () => {
+          const s = Math.min(1, max / Math.max(img.width, img.height));
+          const c = document.createElement('canvas');
+          c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          c.toBlob(b => {
+            if (!b) return rej(new Error('Myndin kundi ikki lesast.'));
+            if (b.size < 900000 || max < 700){ URL.revokeObjectURL(img.src); res(b); }
+            else { q = Math.max(0.55, q - 0.08); max = Math.round(max * 0.85); attempt(); }
+          }, 'image/jpeg', q);
+        };
+        attempt();
+      };
+      img.onerror = () => rej(new Error('Myndin kundi ikki lesast.'));
+      img.src = URL.createObjectURL(file);
+    });
+  }
+  $('photo').onchange = async e => {
+    const f = e.target.files[0]; if (!f) return;
+    try{
+      photoBlob = await compress(f);
+      $('preview').src = URL.createObjectURL(photoBlob); $('preview').hidden = false;
+      $('shotEmpty').hidden = true; $('retake').hidden = false; $('shot').classList.add('has');
+      aiResult = null; $('aiBox').hidden = true;
+      $('aiBtnWrap').hidden = !cfg.aiEnabled; $('aiBtn').disabled = false;
+      msg('');
+    }catch(err){ msg(err.message, true); }
+    validate();
+  };
+
+  // ---------- location ----------
+  function locate(){
+    $('loc').className = 'loc'; $('locMain').textContent = 'Finni staðið…'; $('locSub').textContent = '';
+    if (!navigator.geolocation) return locFail('Telefonin kann ikki finna staðið');
+    navigator.geolocation.getCurrentPosition(p => {
+      coords = { lat: +p.coords.latitude.toFixed(6), lon: +p.coords.longitude.toFixed(6), acc: Math.round(p.coords.accuracy) };
+      $('loc').className = 'loc ok';
+      $('locMain').textContent = `${coords.lat.toFixed(5)}, ${coords.lon.toFixed(5)}`;
+      $('locSub').textContent = `Neyvt uppá umleið ${coords.acc} m`;
+      validate();
+    }, err => locFail(err.code === 1 ? 'Loyvi til stað varð ikki givið' : 'Staðið fanst ikki'),
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
+  }
+  function locFail(t){
+    coords = null; $('loc').className = 'loc bad';
+    $('locMain').textContent = t; $('locSub').textContent = 'Skriva staðarnavn niðanfyri';
+    validate();
+  }
+  $('locRetry').onclick = locate;
+  $('place').oninput = validate;
+
+  function validate(){
+    const hasPlace = coords || $('place').value.trim().length > 2;
+    const tsOk = !cfg.turnstileSiteKey || tsToken;
+    $('send').disabled = !(photoBlob && hasPlace && tsOk);
+  }
+  function msg(t, err){ const m = $('sendMsg'); m.textContent = t; m.className = 'msg' + (err ? ' err' : ''); }
+
+  // ---------- AI ----------
+  $('aiBtn').onclick = async () => {
+    if (!photoBlob) return;
+    const box = $('aiBox'); box.hidden = false; box.textContent = 'Hyggi at myndini…';
+    $('aiBtn').disabled = true;
+    const fd = new FormData(); fd.append('photo', photoBlob, 'photo.jpg');
+    try{
+      const r = await fetch('/api/identify', { method: 'POST', body: fd });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Plantan kundi ikki kennast');
+      aiResult = d; box.innerHTML = '';
+      const who = document.createElement('div'); who.className = 'who';
+      who.textContent = (d.name_fo || d.name_en || 'Ókend planta') + ' ';
+      const lat = document.createElement('span'); lat.className = 'latin'; lat.textContent = d.latin; who.append(lat);
+      const n = document.createElement('div'); n.textContent = d.note_fo;
+      const c = document.createElement('div'); c.className = 'hint'; c.textContent = `Vissa: ${d.confidence || '–'}. AI-meting, ikki endalig.`;
+      box.append(who, n, c);
+    }catch(e){
+      box.textContent = e.message + '. Tú kanst senda uttan.'; $('aiBtn').disabled = false;
+    }
+  };
+
+  // ---------- send ----------
+  $('send').onclick = async () => {
+    $('send').disabled = true; msg('Sendi…');
+    const fd = new FormData();
+    fd.append('photo', photoBlob, 'photo.jpg');
+    if (coords){ fd.append('lat', coords.lat); fd.append('lon', coords.lon); fd.append('accuracy', coords.acc); }
+    fd.append('place', $('place').value.trim());
+    fd.append('description', $('desc').value.trim());
+    if (aiResult){
+      fd.append('ai_name', aiResult.name_fo || aiResult.name_en || '');
+      fd.append('ai_latin', aiResult.latin || '');
+      fd.append('ai_confidence', aiResult.confidence || '');
+    }
+    if (tsToken) fd.append('cf-turnstile-response', tsToken);
+    try{
+      const r = await fetch('/api/report', { method: 'POST', body: fd });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Fráboðanin varð ikki send');
+      $('form').hidden = true; $('thanks').hidden = false; msg('');
+    }catch(e){
+      msg(e.message + '. Kanna sambandið og royn aftur.', true);
+      if (tsWidget !== null){ turnstile.reset(tsWidget); tsToken = ''; }
+      validate();
+    }
+  };
+
+  $('again').onclick = () => {
+    photoBlob = aiResult = null;
+    $('photo').value = ''; $('preview').hidden = true; $('shotEmpty').hidden = false; $('retake').hidden = true;
+    $('shot').classList.remove('has'); $('aiBox').hidden = true; $('aiBtnWrap').hidden = true;
+    $('desc').value = ''; $('place').value = '';
+    if (tsWidget !== null){ turnstile.reset(tsWidget); tsToken = ''; }
+    $('thanks').hidden = true; $('form').hidden = false; locate(); validate();
+  };
+
+  locate();
+})();
+</script>
+</body>
+</html>
