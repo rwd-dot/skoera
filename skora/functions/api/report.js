@@ -1,6 +1,18 @@
 import { json, str, num, verifyTurnstile, IMAGE_TYPES, MAX_PHOTO_BYTES } from '../../lib/util.js';
 
-export async function onRequestPost({ request, env }) {
+export async function onRequestPost(ctx) {
+  const { env } = ctx;
+  if (!env.DB) return json({ error: 'Uppseting: D1-binding "DB" manglar (ella ongin nýggj deploy)' }, 500);
+  if (!env.PHOTOS) return json({ error: 'Uppseting: R2-binding "PHOTOS" manglar (ella ongin nýggj deploy)' }, 500);
+  try {
+    return await handle(ctx);
+  } catch (e) {
+    console.error('report failed', e);
+    return json({ error: 'Servarafeilur: ' + (e && e.message ? e.message : String(e)) }, 500);
+  }
+}
+
+async function handle({ request, env }) {
   let form;
   try { form = await request.formData(); } catch { return json({ error: 'Ógildugur fyrispurningur' }, 400); }
 
