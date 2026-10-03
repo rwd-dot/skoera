@@ -39,12 +39,28 @@
       <button class="secondary" id="csv">Tak út sum CSV</button>
       <button class="secondary" id="reload">Dagfør</button>
     </div>
+    <div class="toolbar inat-bar">
+      <label class="chk"><input type="checkbox" id="inatOn" checked> <span class="ring"></span> iNaturalist</label>
+      <label class="chk"><input type="checkbox" id="inatResearch"> Bert Research Grade</label>
+      <select id="inatTaxon" aria-label="Slag"><option value="">Øll Alchemilla-sløg</option></select>
+      <span class="hint" id="inatStatus"></span>
+    </div>
     <div class="grid">
       <div class="map" id="map"></div>
       <div id="list"></div>
     </div>
   </section>
 </div>
+<style>
+.inat-bar{font-size:.92rem}
+.chk{display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.ring{display:inline-block;width:12px;height:12px;border-radius:50%;border:3px solid #7E4F77;background:#fff}
+.inat-pop{width:220px;font:14px/1.4 Karla,system-ui,sans-serif}
+.inat-pop img{width:100%;height:150px;object-fit:cover;border-radius:8px;display:block;margin-bottom:6px;background:#eee}
+.inat-pop .g{display:inline-block;font-size:.75rem;font-weight:700;padding:1px 7px;border-radius:999px;background:#E6DDE5;color:#5A3355}
+.inat-pop .g.research{background:#3F6B2E;color:#fff}
+.inat-pop i{color:#5F6A58}
+</style>
 <dialog id="big"><img alt="Stór mynd"></dialog>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -54,6 +70,9 @@
   const STATUS = { nyggj: 'Nýggj', kannad: 'Kannað', burtur: 'Burturbeint' };
   const COLOR = { nyggj: '#E3C94B', kannad: '#8C9585', burtur: '#3F6B2E' };
   let token = '', reports = [], map, layer, markers = {};
+  let inat = [], inatLayer, inatLoaded = false, inatFetched = '';
+  const GRADE = { research: 'Research Grade', needs_id: 'Needs ID', casual: 'Casual' };
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
   try{ token = localStorage.getItem('skora_admin') || ''; }catch{}
 
   const api = (path, opts = {}) => fetch(path, { ...opts, headers: { ...(opts.headers || {}), Authorization: 'Bearer ' + token } });
@@ -75,8 +94,9 @@
       map = L.map('map').setView([62.05, -6.9], 8);
       L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
       layer = L.layerGroup().addTo(map);
+      inatLayer = L.layerGroup().addTo(map);
     }
-    if (await load()) setTimeout(() => map.invalidateSize(), 50);
+    if (await load()){ setTimeout(() => map.invalidateSize(), 50); if (!inatLoaded) loadInat(); }
   }
   $('loginBtn').onclick = () => {
     token = $('token').value.trim(); if (!token) return;
@@ -85,7 +105,53 @@
   };
   $('token').onkeydown = e => { if (e.key === 'Enter') $('loginBtn').click(); };
   $('logout').onclick = () => { token = ''; try{ localStorage.removeItem('skora_admin'); }catch{} showLogin(); };
-  $('reload').onclick = load;
+  $('reload').onclick = () => { load(); loadInat(); };
+  $('inatOn').onchange = renderInat;
+  $('inatResearch').onchange = renderInat;
+  $('inatTaxon').onchange = renderInat;
+
+  async function loadInat(){
+    $('inatStatus').textContent = 'Heinti frá iNaturalist…';
+    try{
+      const r = await api('/api/admin/inat');
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'HTTP ' + r.status);
+      inat = d.observations || []; inatLoaded = true;
+      const taxa = [...new Set(inat.map(o => o.taxon).filter(Boolean))].sort();
+      const sel = $('inatTaxon'), cur = sel.value;
+      sel.length = 1;
+      for (const t of taxa){ const c = inat.filter(o => o.taxon === t).length; sel.append(new Option(`${t} (${c})`, t)); }
+      sel.value = taxa.includes(cur) ? cur : '';
+      const when = new Date(d.fetchedAt).toLocaleString('da-DK', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+      inatFetched = `dagført ${when}${d.stale ? ' (gamalt, iNaturalist svarar ikki)' : ''}`;
+      renderInat();
+    }catch(e){ $('inatStatus').textContent = 'iNaturalist: ' + e.message; }
+  }
+
+  function renderInat(){
+    if (!inatLayer) return;
+    inatLayer.clearLayers();
+    if (!$('inatOn').checked) return;
+    const onlyR = $('inatResearch').checked, tx = $('inatTaxon').value;
+    const shown = inat.filter(o => (!onlyR || o.grade === 'research') && (!tx || o.taxon === tx));
+    for (const o of shown){
+      const research = o.grade === 'research';
+      const pop = `<div class="inat-pop">
+        ${o.photo ? `<a href="${esc(o.url)}" target="_blank" rel="noopener"><img src="${esc(o.photo)}" alt=""></a>` : ''}
+        <b><i>${esc(o.taxon || 'Ókent')}</i></b>${o.common ? '<br>' + esc(o.common) : ''}<br>
+        <span class="g ${research ? 'research' : ''}">${esc(GRADE[o.grade] || o.grade || '')}</span><br>
+        ${esc(o.observedOn || '')}${o.user ? ' · ' + esc(o.user) : ''}<br>
+        ${o.place ? esc(o.place) + '<br>' : ''}
+        ${o.obscured ? '<span style="color:#9B3B26">Staðið er óneyvt (verjað av brúkaranum)</span><br>' : ''}
+        <a href="${esc(o.url)}" target="_blank" rel="noopener">Opna á iNaturalist</a></div>`;
+      L.circleMarker([o.lat, o.lon], {
+        radius: research ? 7 : 6, color: '#7E4F77', weight: research ? 3.5 : 2,
+        dashArray: research ? null : '3 3', fillColor: '#FFFFFF', fillOpacity: research ? .9 : .5,
+      }).bindPopup(pop, { maxWidth: 240 }).addTo(inatLayer);
+    }
+    const r = shown.filter(o => o.grade === 'research').length;
+    $('inatStatus').textContent = `${shown.length} á korti (${r} Research Grade) · ${inatFetched}`;
+  }
   $('filter').onchange = render;
 
   function render(){
