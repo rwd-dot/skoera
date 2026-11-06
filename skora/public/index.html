@@ -101,7 +101,7 @@
   <div class="species" id="species"></div>
 </section>
 </main>
-<footer><div class="wrap">Innræsnar Plantur · Ment og stuðla av Regin W. Dalsgaard<br>Kort: © OpenStreetMap · Fund frá <a href="https://www.inaturalist.org" target="_blank" rel="noopener">iNaturalist</a> koma sjálvvirkandi við.</div></footer>
+<footer><div class="wrap">Innræsnar Plantur · Ment og stuðla av Regin W. Dalsgaard<br>Kort: © OpenStreetMap · Fráboðanir frá <a href="https://www.inaturalist.org" target="_blank" rel="noopener">iNaturalist</a> koma sjálvvirkandi við.</div></footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="/shared.js"></script>
@@ -325,7 +325,7 @@
     if (fit && pts.length) big.fitBounds(pts, { padding: [30, 30], maxZoom: 13 });
     const c = s => vis.filter(r => key(r) === s).length;
     $('panel').innerHTML = `<div class="stats">${[['frab', 'Fráboðað'], ['byrj', 'Týning byrjað'], ['burt', 'Burturbeint'], ['fylg', 'Fylg upp']].map(([s, l]) => `<div class="card stat"><b>${c(s)}</b><span><i class="dot d-${s}"></i>${l}</span></div>`).join('')}</div>
-      <div class="card" style="padding:14px 16px"><b>${iv.length}</b> fund frá iNaturalist á kortinum. <span class="hint">Fund, sum kommunan hevur tikið inn, standa sum vanligar fráboðanir.</span></div>
+      <div class="card" style="padding:14px 16px"><b>${iv.length}</b> fráboðanir frá iNaturalist á kortinum. <span class="hint">Tær, sum kommunan hevur tikið inn, standa sum vanligar fráboðanir.</span></div>
       <p class="hint">Trýst á ein prikk fyri at síggja støðuna. Myndir og frágreiðingar síggja bert kommunurnar.</p>`;
   }
 
