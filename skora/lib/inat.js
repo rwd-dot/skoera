@@ -45,7 +45,7 @@ async function fetchTaxon(sp, name) {
   for (let page = 1; page <= MAX_PAGES; page++) {
     const q = new URLSearchParams({ taxon_name: name, ...BBOX, per_page: '200', page: String(page), order_by: 'observed_on', order: 'desc' });
     const r = await fetch('https://api.inaturalist.org/v1/observations?' + q, {
-      headers: { 'User-Agent': 'skoera.pages.dev (Innraesnar Plantur, Faroe Islands)', Accept: 'application/json' },
+      headers: { 'User-Agent': 'ip.dagsins.fo (Innraesnar Plantur, Faroe Islands)', Accept: 'application/json' },
     });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const d = await r.json();
