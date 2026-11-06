@@ -4,99 +4,88 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
-<title>Skøra – fráboðanir</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌼</text></svg>">
+<title>Innræsnar Plantur – kommunur</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='24' fill='%233E6A2D'/><text x='50' y='66' font-size='46' font-family='sans-serif' font-weight='700' text-anchor='middle' fill='white'>IP</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Karla:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/ip.css">
 </head>
 <body>
-<div class="wrap wide">
-  <header>
-    <h1>Fráboðanir<small>Skøra í Føroyum</small></h1>
-    <button class="linkbtn" id="logout" hidden>Rita út</button>
-  </header>
+<header class="top"><div class="wrap">
+  <a class="brand" href="/"><div class="mark" aria-hidden="true">IP</div><div><h1>Innræsnar Plantur</h1><small>Fyri kommunur</small></div></a>
+  <nav class="tabs" aria-label="Valmynd" id="nav" hidden>
+    <a href="#kort" id="t-kort">Kort</a><a href="#kommunur" id="t-kommunur">Kommunur</a>
+  </nav>
+  <div class="who" id="who"></div>
+</div></header>
 
-  <section id="login" hidden style="max-width:420px">
-    <div class="field">
-      <label for="token"><span>Admin-lykil</span></label>
-      <input type="password" id="token" autocomplete="current-password">
-      <div class="hint">Lykilin er ADMIN_TOKEN, sum er settur í Cloudflare.</div>
-    </div>
-    <button class="primary" id="loginBtn">Rita inn</button>
+<main class="wrap">
+  <section id="login" class="card login" style="max-width:440px" hidden>
+    <h2 style="font-size:1.5rem">Rita inn</h2>
+    <div><label class="f" for="token">Lykil</label><input type="password" id="token" autocomplete="current-password"></div>
+    <div class="hint">Hvør kommuna hevur sín egna lykil. Spyr umsitaran, um tú ikki hevur hann.</div>
+    <button class="btn" id="loginBtn" type="button">Rita inn</button>
     <div class="msg err" id="loginMsg"></div>
   </section>
 
-  <section id="app" hidden>
-    <div class="stats" id="stats"></div>
-    <div class="toolbar">
-      <select id="filter" aria-label="Filtur">
-        <option value="">Allar</option><option value="nyggj">Nýggjar</option>
-        <option value="kannad">Kannaðar</option><option value="burtur">Burturbeindar</option>
-      </select>
-      <button class="secondary" id="csv">Tak út sum CSV</button>
-      <button class="secondary" id="reload">Dagfør</button>
+  <section class="view" id="v-kort" hidden>
+    <div class="filters">
+      <button class="sbtn" data-s="frab" aria-pressed="true"><span class="dot d-frab"></span>Fráboðað</button>
+      <button class="sbtn" data-s="byrj" aria-pressed="true"><span class="dot d-byrj"></span>Týning byrjað</button>
+      <button class="sbtn" data-s="burt" aria-pressed="true"><span class="dot d-burt"></span>Burturbeint</button>
+      <button class="sbtn" data-s="fylg" aria-pressed="true"><span class="dot d-fylg"></span>Fylg upp</button>
+      <button class="sbtn" data-s="inat" aria-pressed="true"><span class="legend-inat"></span>iNaturalist</button>
+      <select id="fKom" aria-label="Kommuna"><option value="">Allar kommunur</option></select>
+      <select id="fSp" aria-label="Planta"><option value="">Allar plantur</option></select>
+      <button class="btn sm ghost" id="csv" type="button">Tak út sum CSV</button>
+      <button class="btn sm ghost" id="reload" type="button">Dagfør</button>
     </div>
-    <div class="toolbar inat-bar">
-      <label class="chk"><input type="checkbox" id="inatOn" checked> <span class="ring"></span> iNaturalist</label>
-      <label class="chk"><input type="checkbox" id="inatResearch"> Bert Research Grade</label>
-      <select id="inatTaxon" aria-label="Slag"><option value="">Øll Alchemilla-sløg</option></select>
-      <span class="hint" id="inatStatus"></span>
-    </div>
-    <div class="grid">
-      <div class="map" id="map"></div>
-      <div id="list"></div>
+    <div class="split">
+      <div class="bigmap" id="bigmap"></div>
+      <div class="panel" id="panel"></div>
     </div>
   </section>
-</div>
-<style>
-.inat-bar{font-size:.92rem}
-.chk{display:inline-flex;align-items:center;gap:6px;cursor:pointer}
-.ring{display:inline-block;width:12px;height:12px;border-radius:50%;border:3px solid #7E4F77;background:#fff}
-.inat-pop{width:220px;font:14px/1.4 Karla,system-ui,sans-serif}
-.inat-pop img{width:100%;height:150px;object-fit:cover;border-radius:8px;display:block;margin-bottom:6px;background:#eee}
-.inat-pop .g{display:inline-block;font-size:.75rem;font-weight:700;padding:1px 7px;border-radius:999px;background:#E6DDE5;color:#5A3355}
-.inat-pop .g.research{background:#3F6B2E;color:#fff}
-.inat-pop i{color:#5F6A58}
-</style>
+
+  <section class="view" id="v-kommunur" hidden>
+    <h2 class="h2">Kommunur</h2>
+    <p class="lead">Allar kommunur brúka somu skipan og síggja sama kortið. Hvør kommuna dagførir síni egnu støð og kann hjálpa grannanum.</p>
+    <div class="kgrid" style="margin-top:16px">
+      <div class="tablewrap card"><table><thead><tr><th>Kommuna</th><th class="n">Fráboðað</th><th class="n">Týning byrjað</th><th class="n">Burturbeint</th><th class="n">Fylg upp</th></tr></thead><tbody id="ktab"></tbody></table></div>
+      <div class="card login" id="todo"></div>
+    </div>
+  </section>
+</main>
 <dialog id="big"><img alt="Stór mynd"></dialog>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="/shared.js"></script>
 <script>
 (() => {
   const $ = id => document.getElementById(id);
-  const STATUS = { nyggj: 'Nýggj', kannad: 'Kannað', burtur: 'Burturbeint' };
-  const COLOR = { nyggj: '#E3C94B', kannad: '#8C9585', burtur: '#3F6B2E' };
-  let token = '', reports = [], map, layer, markers = {};
-  let inat = [], inatLayer, inatLoaded = false, inatFetched = '';
-  const GRADE = { research: 'Research Grade', needs_id: 'Needs ID', casual: 'Casual' };
-  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  const { SPECIES, STATUS, esc, fmt, key, pill, isFylg, baseMap, marker, inatMarker } = IP;
+  let token = '', acc = null, reports = [], inat = [], big, layer, inatLayer, selected = null, confirmDel = false;
   try{ token = localStorage.getItem('skora_admin') || ''; }catch{}
 
   const api = (path, opts = {}) => fetch(path, { ...opts, headers: { ...(opts.headers || {}), Authorization: 'Bearer ' + token } });
-  const fmt = iso => new Date(iso).toLocaleString('da-DK', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+  const canEdit = r => acc && (acc.kommuna === '*' || acc.kommuna === r.kommuna);
+  const photoOf = r => r.photo_key ? '/photo/' + r.photo_key : (r.photo_url || '');
 
-  async function load(){
-    const r = await api('/api/admin/reports');
-    if (r.status === 401){ showLogin('Skeivur lykil.'); return false; }
-    if (!r.ok){ $('list').innerHTML = '<div class="empty-list">Fráboðanir kundu ikki heintast.</div>'; return true; }
-    reports = (await r.json()).reports; render(); return true;
-  }
+  // ---------- login ----------
   function showLogin(err){
-    $('login').hidden = false; $('app').hidden = true; $('logout').hidden = true;
-    $('loginMsg').textContent = err || '';
+    $('login').hidden = false; $('nav').hidden = true; $('v-kort').hidden = true; $('v-kommunur').hidden = true;
+    $('who').innerHTML = ''; $('loginMsg').textContent = err || '';
   }
   async function start(){
-    $('login').hidden = true; $('app').hidden = false; $('logout').hidden = false;
-    if (!map){
-      map = L.map('map').setView([62.05, -6.9], 8);
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
-      layer = L.layerGroup().addTo(map);
-      inatLayer = L.layerGroup().addTo(map);
-    }
-    if (await load()){ setTimeout(() => map.invalidateSize(), 50); if (!inatLoaded) loadInat(); }
+    const r = await api('/api/admin/me').catch(() => null);
+    if (!r || r.status === 401) return showLogin(token ? 'Skeivur lykil.' : '');
+    acc = await r.json();
+    $('login').hidden = true; $('nav').hidden = false;
+    $('who').innerHTML = `Innritað: <b>${esc(acc.kommuna === '*' ? 'Admin (allar kommunur)' : acc.kommuna)}</b> · <button class="linkbtn" id="logout" type="button">Rita út</button>`;
+    $('logout').onclick = () => { token = ''; try{ localStorage.removeItem('skora_admin'); }catch{} acc = null; showLogin(); };
+    if (acc.kommuna !== '*') $('fKom').value = '';
+    await load(); route();
   }
   $('loginBtn').onclick = () => {
     token = $('token').value.trim(); if (!token) return;
@@ -104,130 +93,167 @@
     start();
   };
   $('token').onkeydown = e => { if (e.key === 'Enter') $('loginBtn').click(); };
-  $('logout').onclick = () => { token = ''; try{ localStorage.removeItem('skora_admin'); }catch{} showLogin(); };
-  $('reload').onclick = () => { load(); loadInat(); };
-  $('inatOn').onchange = renderInat;
-  $('inatResearch').onchange = renderInat;
-  $('inatTaxon').onchange = renderInat;
 
+  // ---------- data ----------
+  async function load(){
+    const r = await api('/api/admin/reports');
+    if (r.status === 401) return showLogin('Skeivur lykil.');
+    reports = (await r.json()).reports || [];
+    const ks = [...new Set(reports.map(x => x.kommuna).filter(Boolean).concat(acc.kommuna !== '*' ? [acc.kommuna] : []))].sort((a, b) => a.localeCompare(b, 'fo'));
+    const cur = $('fKom').value; $('fKom').length = 1; ks.forEach(k => $('fKom').append(new Option(k, k))); $('fKom').value = cur;
+    loadInat(); render(); renderKom();
+  }
   async function loadInat(){
-    $('inatStatus').textContent = 'Heinti frá iNaturalist…';
     try{
-      const r = await api('/api/admin/inat');
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || 'HTTP ' + r.status);
-      inat = d.observations || []; inatLoaded = true;
-      const taxa = [...new Set(inat.map(o => o.taxon).filter(Boolean))].sort();
-      const sel = $('inatTaxon'), cur = sel.value;
-      sel.length = 1;
-      for (const t of taxa){ const c = inat.filter(o => o.taxon === t).length; sel.append(new Option(`${t} (${c})`, t)); }
-      sel.value = taxa.includes(cur) ? cur : '';
-      const when = new Date(d.fetchedAt).toLocaleString('da-DK', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
-      inatFetched = `dagført ${when}${d.stale ? ' (gamalt, iNaturalist svarar ikki)' : ''}`;
-      renderInat();
-    }catch(e){ $('inatStatus').textContent = 'iNaturalist: ' + e.message; }
+      const r = await api('/api/admin/inat'); const d = await r.json();
+      const imported = new Set(reports.map(x => x.inat_id).filter(Boolean));
+      inat = (d.observations || []).filter(o => !imported.has(o.id)); render();
+    }catch{}
   }
+  $('reload').onclick = load;
 
-  function renderInat(){
-    if (!inatLayer) return;
-    inatLayer.clearLayers();
-    if (!$('inatOn').checked) return;
-    const onlyR = $('inatResearch').checked, tx = $('inatTaxon').value;
-    const shown = inat.filter(o => (!onlyR || o.grade === 'research') && (!tx || o.taxon === tx));
-    for (const o of shown){
-      const research = o.grade === 'research';
-      const pop = `<div class="inat-pop">
-        ${o.photo ? `<a href="${esc(o.url)}" target="_blank" rel="noopener"><img src="${esc(o.photo)}" alt=""></a>` : ''}
-        <b><i>${esc(o.taxon || 'Ókent')}</i></b>${o.common ? '<br>' + esc(o.common) : ''}<br>
-        <span class="g ${research ? 'research' : ''}">${esc(GRADE[o.grade] || o.grade || '')}</span><br>
-        ${esc(o.observedOn || '')}${o.user ? ' · ' + esc(o.user) : ''}<br>
-        ${o.place ? esc(o.place) + '<br>' : ''}
-        ${o.obscured ? '<span style="color:#9B3B26">Staðið er óneyvt (verjað av brúkaranum)</span><br>' : ''}
-        <a href="${esc(o.url)}" target="_blank" rel="noopener">Opna á iNaturalist</a></div>`;
-      L.circleMarker([o.lat, o.lon], {
-        radius: research ? 7 : 6, color: '#7E4F77', weight: research ? 3.5 : 2,
-        dashArray: research ? null : '3 3', fillColor: '#FFFFFF', fillOpacity: research ? .9 : .5,
-      }).bindPopup(pop, { maxWidth: 240 }).addTo(inatLayer);
+  // ---------- routing ----------
+  function route(){
+    if (!acc) return;
+    const v = location.hash === '#kommunur' ? 'kommunur' : 'kort';
+    $('v-kort').hidden = v !== 'kort'; $('v-kommunur').hidden = v !== 'kommunur';
+    for (const n of ['kort', 'kommunur']) n === v ? $('t-' + n).setAttribute('aria-current', 'page') : $('t-' + n).removeAttribute('aria-current');
+    if (v === 'kort'){ if (!big) initMap(); setTimeout(() => big.invalidateSize(), 30); render(); }
+    else renderKom();
+  }
+  addEventListener('hashchange', route);
+
+  // ---------- map + list ----------
+  const show = { frab: true, byrj: true, burt: true, fylg: true, inat: true };
+  document.querySelectorAll('.sbtn').forEach(b => b.onclick = () => { show[b.dataset.s] = !show[b.dataset.s]; b.setAttribute('aria-pressed', String(show[b.dataset.s])); render(); });
+  for (const [k, s] of Object.entries(SPECIES)) $('fSp').append(new Option(s.fo, k));
+  $('fKom').onchange = $('fSp').onchange = () => { selected = null; render(true); };
+  function initMap(){ big = baseMap('bigmap', { layers: true }); layer = L.layerGroup().addTo(big); inatLayer = L.layerGroup().addTo(big); }
+  const visible = () => reports.filter(r => show[key(r)] && (!$('fKom').value || r.kommuna === $('fKom').value) && (!$('fSp').value || r.species === $('fSp').value));
+
+  function render(fit){
+    if (!big || !acc) return;
+    layer.clearLayers(); inatLayer.clearLayers();
+    const vis = visible();
+    for (const r of vis) if (r.lat != null)
+      marker(r, layer, { selected: r.id === selected, onClick: x => { selected = x.id; confirmDel = false; render(); } })
+        .bindTooltip(`${SPECIES[r.species]?.fo || ''} · ${esc(r.place || r.kommuna || '')}`);
+    const iv = show.inat ? inat.filter(o => !$('fSp').value || o.sp === $('fSp').value) : [];
+    for (const o of iv){
+      const m = inatMarker(o, inatLayer);
+      m.bindPopup(`<div class="inat-pop">${o.photo ? `<img src="${esc(o.photo)}" alt="">` : ''}<b>${SPECIES[o.sp].fo}</b> <i>${esc(o.taxon || '')}</i><br>${esc(o.observedOn || '')}${o.user ? ' · ' + esc(o.user) : ''}<br>${o.place ? esc(o.place) + '<br>' : ''}${o.obscured ? '<span class="err">Staðið er óneyvt</span><br>' : ''}<a href="${esc(o.url)}" target="_blank" rel="noopener">Opna á iNaturalist</a><br><button class="btn sm" data-imp="${o.id}" type="button" style="margin-top:8px">Tak inn sum fráboðan</button><div class="msg err" data-impmsg="${o.id}"></div></div>`, { maxWidth: 240 });
     }
-    const r = shown.filter(o => o.grade === 'research').length;
-    $('inatStatus').textContent = `${shown.length} á korti (${r} Research Grade) · ${inatFetched}`;
+    if (fit){ const pts = vis.filter(r => r.lat != null).map(r => [r.lat, r.lon]); if (pts.length) big.fitBounds(pts, { padding: [30, 30], maxZoom: 13 }); }
+    const r = reports.find(x => x.id === selected);
+    r ? renderDetail(r) : renderList(vis);
   }
-  $('filter').onchange = render;
+  document.addEventListener('click', async e => {
+    const b = e.target.closest('[data-imp]'); if (!b) return;
+    b.disabled = true; b.textContent = 'Tekur inn…';
+    const r = await api('/api/admin/import-inat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ inat_id: Number(b.dataset.imp) }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok){ b.disabled = false; b.textContent = 'Tak inn sum fráboðan'; const m = document.querySelector(`[data-impmsg="${b.dataset.imp}"]`); if (m) m.textContent = d.error || 'Miseydnaðist'; return; }
+    big.closePopup(); selected = d.id; await load();
+  });
 
-  function render(){
-    const f = $('filter').value;
-    const shown = f ? reports.filter(r => r.status === f) : reports;
-    const n = s => reports.filter(r => r.status === s).length;
-    $('stats').innerHTML = '';
-    [['í alt', reports.length], ['nýggjar', n('nyggj')], ['kannaðar', n('kannad')], ['burturbeindar', n('burtur')]].forEach(([l, v]) => {
-      const d = document.createElement('div'); const b = document.createElement('b'); b.textContent = v; d.append(b, l); $('stats').append(d);
+  function renderList(vis){
+    const c = s => vis.filter(r => key(r) === s).length;
+    $('panel').innerHTML = `<div class="stats">${[['frab', 'Fráboðað'], ['byrj', 'Týning byrjað'], ['burt', 'Burturbeint'], ['fylg', 'Fylg upp']].map(([s, l]) => `<div class="card stat"><b>${c(s)}</b><span><i class="dot d-${s}"></i>${l}</span></div>`).join('')}</div><div class="list" id="list"></div>`;
+    const list = $('list');
+    if (!vis.length){ list.innerHTML = '<p class="hint" style="padding:20px 4px">Einki stað passar til filtrini.</p>'; return; }
+    const mine = r => acc.kommuna !== '*' && r.kommuna === acc.kommuna ? 0 : 1;
+    const order = { fylg: 0, frab: 1, byrj: 2, burt: 3 };
+    [...vis].sort((a, b) => mine(a) - mine(b) || order[key(a)] - order[key(b)] || new Date(b.status_at || b.created_at) - new Date(a.status_at || a.created_at)).forEach(r => {
+      const b = document.createElement('button'); b.className = 'row'; b.type = 'button';
+      const ph = photoOf(r);
+      b.innerHTML = `${ph ? `<img src="${esc(ph)}" alt="" loading="lazy">` : '<div class="ph"></div>'}<div style="min-width:0"><div class="t">${esc(r.place || (r.lat != null ? r.lat.toFixed(4) + ', ' + r.lon.toFixed(4) : 'Ókendur staður'))}</div><div class="m">${SPECIES[r.species]?.fo || ''} · ${esc(r.kommuna || 'Ókend kommuna')}${r.source === 'inat' ? ' · iNaturalist' : ''} · ${fmt(r.status_at || r.created_at)}</div></div>${pill(r)}`;
+      b.onclick = () => { selected = r.id; confirmDel = false; if (r.lat != null) big.setView([r.lat, r.lon], Math.max(big.getZoom(), 13)); render(); };
+      list.append(b);
     });
-
-    layer.clearLayers(); markers = {};
-    const pts = [];
-    for (const r of shown){
-      if (r.lat == null) continue;
-      const m = L.circleMarker([r.lat, r.lon], { radius: 8, color: '#23291F', weight: 1.5, fillColor: COLOR[r.status] || COLOR.nyggj, fillOpacity: .95 })
-        .bindTooltip((r.place || fmt(r.created_at)))
-        .on('click', () => focus(r.id));
-      m.addTo(layer); markers[r.id] = m; pts.push([r.lat, r.lon]);
-    }
-    if (pts.length) map.fitBounds(pts, { padding: [30, 30], maxZoom: 14 });
-
-    const list = $('list'); list.innerHTML = '';
-    if (!shown.length){ list.innerHTML = '<div class="empty-list">Eingin fráboðan her.</div>'; return; }
-    for (const r of shown){
-      const it = document.createElement('div'); it.className = 'item'; it.id = 'r-' + r.id;
-      const img = document.createElement('img'); img.alt = 'Mynd'; img.loading = 'lazy'; img.src = '/photo/' + r.photo_key;
-      img.onclick = () => { $('big').querySelector('img').src = img.src; $('big').showModal(); };
-      const body = document.createElement('div');
-      const top = document.createElement('div');
-      const pill = document.createElement('span'); pill.className = 'pill ' + r.status; pill.textContent = STATUS[r.status] || r.status;
-      const when = document.createElement('span'); when.className = 'when'; when.textContent = fmt(r.created_at);
-      top.append(pill, when);
-      const place = document.createElement('p'); place.style.fontWeight = '700';
-      place.textContent = r.place || (r.lat != null ? `${r.lat.toFixed(5)}, ${r.lon.toFixed(5)}` : 'Ókendur staður');
-      body.append(top, place);
-      if (r.accuracy != null){ const a = document.createElement('div'); a.className = 'hint'; a.textContent = `GPS ±${r.accuracy} m`; body.append(a); }
-      if (r.ai_name){ const a = document.createElement('p'); a.className = 'hint'; a.textContent = `AI: ${r.ai_name}${r.ai_latin ? ' (' + r.ai_latin + ')' : ''}, vissa ${r.ai_confidence || '–'}`; body.append(a); }
-      if (r.description){ const d = document.createElement('p'); d.textContent = r.description; body.append(d); }
-
-      const act = document.createElement('div'); act.className = 'actions';
-      const sel = document.createElement('select'); sel.setAttribute('aria-label', 'Støða');
-      for (const [k, v] of Object.entries(STATUS)){ const o = new Option(v, k); o.selected = r.status === k; sel.append(o); }
-      sel.onchange = async () => {
-        const res = await api('/api/admin/reports/' + r.id, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ status: sel.value }) });
-        if (res.ok){ r.status = sel.value; render(); } else sel.value = r.status;
-      };
-      act.append(sel);
-      if (r.lat != null){
-        const a = document.createElement('a'); a.href = `https://www.google.com/maps?q=${r.lat},${r.lon}`; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Google Maps';
-        act.append(a);
-      }
-      const del = document.createElement('button'); del.className = 'del'; del.textContent = 'Strika';
-      del.onclick = async () => {
-        if (!confirm('Strika hesa fráboðanina og myndina? Tað kann ikki angrast.')) return;
-        const res = await api('/api/admin/reports/' + r.id, { method: 'DELETE' });
-        if (res.ok){ reports = reports.filter(x => x.id !== r.id); render(); }
-      };
-      act.append(del);
-      body.append(act);
-      it.append(img, body); list.append(it);
-    }
-  }
-  function focus(id){
-    document.querySelectorAll('.item.active').forEach(e => e.classList.remove('active'));
-    const el = $('r-' + id); if (!el) return;
-    el.classList.add('active'); el.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
+  function renderDetail(r){
+    const ed = canEdit(r), ph = photoOf(r);
+    const col = { frab: 'd-frab', byrj: 'd-byrj', burt: 'd-burt' };
+    const tl = [...(r.events || [])].reverse().map(e => `<li><span class="dot ${col[e.status] || 'd-frab'}"></span><div><b>${STATUS[e.status] || e.status}</b> <span class="w">· ${fmt(e.at)} · ${esc(e.by)}</span>${e.note ? `<div>${esc(e.note)}</div>` : ''}</div></li>`).join('');
+    const btns = { frab: [['byrj', 'Týning byrjað']], byrj: [['burt', 'Burturbeint'], ['byrj', 'Nýtt umfar']], burt: [['burt', 'Kannað: einki aftur'], ['byrj', 'Vaksin aftur']] }[r.status] || [['byrj', 'Týning byrjað']];
+    const spSel = `<select id="dSp" aria-label="Slag" ${ed ? '' : 'disabled'}>${Object.entries(SPECIES).map(([k, s]) => `<option value="${k}" ${k === r.species ? 'selected' : ''}>${s.fo}</option>`).join('')}</select>`;
+    const komSel = acc.kommuna === '*' ? `<select id="dKom" aria-label="Kommuna">${[...new Set([r.kommuna, ...[...$('fKom').options].map(o => o.value)].filter(Boolean))].map(k => `<option ${k === r.kommuna ? 'selected' : ''}>${esc(k)}</option>`).join('')}</select>` : `<b>${esc(r.kommuna || 'Ókend kommuna')}</b>`;
+    $('panel').innerHTML = `<div class="card detail">
+      <button class="back" id="back" type="button">← Øll støð</button>
+      ${ph ? `<img class="ph" id="dPhoto" src="${esc(ph)}" alt="Mynd frá fráboðanini" style="cursor:zoom-in">` : ''}
+      <div><div class="acts">${pill(r)}${r.source === 'inat' ? '<span class="pill" style="border-color:var(--line)">Frá iNaturalist</span>' : ''}</div>
+        <h3 style="margin-top:6px">${esc(r.place || 'Uttan staðarnavn')}</h3>
+        <div class="hint">Fráboðað ${fmt(r.created_at)}${r.accuracy != null ? ` · GPS ±${r.accuracy} m` : ''}</div></div>
+      <div class="facts" style="display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 14px;align-items:center"><span class="hint">Slag</span>${spSel}<span class="hint">Kommuna</span><div>${komSel}</div></div>
+      ${r.ai_name ? `<div class="hint">AI: ${esc(r.ai_name)}${r.ai_latin ? ' (' + esc(r.ai_latin) + ')' : ''}, vissa ${esc(r.ai_confidence || '–')}</div>` : ''}
+      ${r.description ? `<p style="margin:0;overflow-wrap:anywhere">${esc(r.description)}</p>` : ''}
+      ${isFylg(r) ? `<div class="fylg-note">Burturbeint fyri meira enn eitt ár síðan. Far og kanna, um plantan er komin aftur.</div>` : ''}
+      ${r.lat != null ? `<div><a href="https://www.google.com/maps?q=${r.lat},${r.lon}" target="_blank" rel="noopener">Opna í Google Maps</a></div>` : ''}
+      <div><div class="f">Søga</div><ul class="tl">${tl || '<li class="hint">Eingin søga</li>'}</ul></div>
+      ${ed ? `<div><label class="f" for="note">Viðmerking <span class="hint">(valfrítt)</span></label><input type="text" id="note" maxlength="300" placeholder="t.d. grivið upp, blómur skornar av"></div>
+        <div class="acts">${btns.map(([k, l]) => `<button class="btn sm" data-k="${k}" type="button">${l}</button>`).join('')}</div>
+        <div class="acts">${confirmDel ? `<span>Strika fráboðanina og myndina? Tað kann ikki angrast.</span><button class="btn sm del ghost" id="delYes" type="button">Ja, strika</button><button class="btn sm ghost" id="delNo" type="button">Angra</button>` : `<button class="btn sm ghost del" id="del" type="button">Strika</button>`}</div>
+        <div class="msg err" id="dMsg"></div>`
+      : `<div class="lock">Hetta stað hoyrir til ${esc(r.kommuna || 'ókenda kommunu')}. Tú sært søguna, men ${esc(r.kommuna || 'admin')} dagførir.</div>`}
+    </div>`;
+    $('back').onclick = () => { selected = null; render(); };
+    if ($('dPhoto')) $('dPhoto').onclick = () => { $('big').querySelector('img').src = ph; $('big').showModal(); };
+    if (!ed) return;
+    const patch = async body => {
+      const res = await api('/api/admin/reports/' + r.id, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok){ $('dMsg').textContent = d.error || 'Broytingin varð ikki goymd'; return null; }
+      return d;
+    };
+    $('panel').querySelectorAll('[data-k]').forEach(b => b.onclick = async () => {
+      b.disabled = true;
+      const note = $('note').value.trim();
+      const d = await patch({ status: b.dataset.k, note });
+      if (d){ r.status = b.dataset.k; r.status_at = d.at; (r.events ||= []).push({ at: d.at, status: b.dataset.k, by: acc.kommuna === '*' ? 'Admin' : acc.kommuna, note }); render(); renderKom(); }
+      else b.disabled = false;
+    });
+    $('dSp').onchange = async () => { const v = $('dSp').value; if (await patch({ species: v })) { r.species = v; render(); } else $('dSp').value = r.species; };
+    if ($('dKom')) $('dKom').onchange = async () => { const v = $('dKom').value; if (await patch({ kommuna: v })) { r.kommuna = v; render(); renderKom(); } };
+    if ($('del')) $('del').onclick = () => { confirmDel = true; render(); };
+    if ($('delNo')) $('delNo').onclick = () => { confirmDel = false; render(); };
+    if ($('delYes')) $('delYes').onclick = async () => {
+      const res = await api('/api/admin/reports/' + r.id, { method: 'DELETE' });
+      if (res.ok){ reports = reports.filter(x => x.id !== r.id); selected = null; confirmDel = false; render(); renderKom(); }
+      else { const d = await res.json().catch(() => ({})); $('dMsg').textContent = d.error || 'Kundi ikki strika'; }
+    };
+  }
+
+  // ---------- kommunur ----------
+  function renderKom(){
+    if (!acc) return;
+    const ks = [...new Set(reports.map(r => r.kommuna || 'Ókend kommuna'))].sort((a, b) => a.localeCompare(b, 'fo'));
+    const me = acc.kommuna;
+    $('ktab').innerHTML = ks.map(k => { const rs = reports.filter(r => (r.kommuna || 'Ókend kommuna') === k); const c = s => rs.filter(r => key(r) === s).length;
+      return `<tr class="${k === me ? 'me' : ''}"><td>${esc(k)}</td><td class="n">${c('frab')}</td><td class="n">${c('byrj')}</td><td class="n">${c('burt')}</td><td class="n">${c('fylg')}</td></tr>`; }).join('') || '<tr><td colspan="5" class="hint">Eingin fráboðan enn.</td></tr>';
+    const mine = reports.filter(r => me === '*' || r.kommuna === me);
+    const fy = mine.filter(isFylg), nyg = mine.filter(r => r.status === 'frab');
+    const li = arr => arr.slice(0, 30).map(r => `<button class="row" type="button" data-id="${r.id}">${photoOf(r) ? `<img src="${esc(photoOf(r))}" alt="" loading="lazy">` : '<div class="ph"></div>'}<div style="min-width:0"><div class="t">${esc(r.place || r.kommuna || 'Ókendur staður')}</div><div class="m">${SPECIES[r.species]?.fo || ''} · ${fmt(r.status_at || r.created_at)}</div></div>${pill(r)}</button>`).join('');
+    $('todo').innerHTML = `<h3 style="font-size:1.25rem">Til arbeiðis${me === '*' ? '' : ' hjá ' + esc(me)}</h3>
+      ${fy.length ? `<div><div class="f">Skal fylgjast upp (${fy.length})</div>${li(fy)}</div>` : ''}
+      ${nyg.length ? `<div><div class="f">Nýggjar fráboðanir (${nyg.length})</div>${li(nyg)}</div>` : ''}
+      ${!fy.length && !nyg.length ? '<p class="hint" style="margin:0">Einki liggur og bíðar. Hygg á kortið, um ein granni hevur brúk fyri hjálp.</p>' : ''}`;
+    $('todo').querySelectorAll('[data-id]').forEach(b => b.onclick = () => {
+      selected = b.dataset.id; $('fKom').value = ''; location.hash = '#kort';
+      setTimeout(() => { const r = reports.find(x => x.id === selected); if (r && r.lat != null) big.setView([r.lat, r.lon], 13); render(); }, 80);
+    });
+  }
+
+  // ---------- CSV ----------
   $('csv').onclick = () => {
-    const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const rows = [['dato','stoda','breidd','longd','neyvleiki_m','stadur','fragreiding','ai_planta','ai_latin','ai_vissa','mynd']]
-      .concat(reports.map(r => [r.created_at, STATUS[r.status] || r.status, r.lat, r.lon, r.accuracy, r.place, r.description, r.ai_name, r.ai_latin, r.ai_confidence, location.origin + '/photo/' + r.photo_key]));
-    const blob = new Blob(['\ufeff' + rows.map(r => r.map(esc).join(';')).join('\n')], { type: 'text/csv;charset=utf-8' });
+    const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const rows = [['dato', 'slag', 'stoda', 'stoda_dato', 'fylg_upp', 'kommuna', 'breidd', 'longd', 'neyvleiki_m', 'stadur', 'fragreiding', 'kelda', 'ai_planta', 'mynd', 'soga']]
+      .concat(visible().map(r => [r.created_at, SPECIES[r.species]?.fo, STATUS[r.status] || r.status, r.status_at, isFylg(r) ? 'ja' : '', r.kommuna, r.lat, r.lon, r.accuracy, r.place, r.description, r.source, r.ai_name,
+        r.photo_key ? location.origin + '/photo/' + r.photo_key : r.photo_url,
+        (r.events || []).map(e => `${e.at.slice(0, 10)} ${STATUS[e.status] || e.status} (${e.by})${e.note ? ': ' + e.note : ''}`).join(' | ')]));
+    const blob = new Blob(['﻿' + rows.map(r => r.map(q).join(';')).join('\n')], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = `skora-frabodanir-${new Date().toISOString().slice(0,10)}.csv`; a.click();
+    a.download = `innraesnar-plantur-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
   };
 
   token ? start() : showLogin();

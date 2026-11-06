@@ -1,10 +1,17 @@
 import { json, toBase64, IMAGE_TYPES, MAX_PHOTO_BYTES } from '../../lib/util.js';
 
-const PROMPT = `The attached photo was taken in the Faroe Islands by someone reporting an invasive weed that locals call "skøra".
-Identify the plant. Reply with only JSON, no other text:
+const PROMPT = `The attached photo was taken in the Faroe Islands by someone reporting an invasive plant.
+The invasive species we track are: Alchemilla mollis (garðaskøra), Erythranthe/Mimulus guttatus (apublóma) and Tussilago farfara (loðið hóvblað).
+Seven Alchemilla species grow in the Faroes; only A. mollis is invasive.
+A. mollis is markedly larger than the other Alchemilla species (often 30–50 cm), with large, soft, hairy leaves in dense clumps
+and many tiny yellow-green flowers on stalks above the leaves. The native Alchemilla species must NOT be removed.
+Identify the plant. Be honest about uncertainty: telling Alchemilla species apart from a photo is often not possible.
+Reply with only JSON, no other text:
 {"latin": string, "name_fo": string (Faroese name if you know it, else ""), "name_en": string,
+ "species": "skora"|"apu"|"folfod"|"ukent" (which tracked invasive species it is, or "ukent" if none or unsure),
+ "invasive": "ja"|"nei"|"óvist",
  "confidence": "høg"|"miðal"|"lág",
- "note_fo": string (one short sentence in Faroese about what you see and whether it looks invasive; say plainly if the photo is unclear)}`;
+ "note_fo": string (one or two short sentences in Faroese: what you see, which features you used, and if unsure say so plainly)}`;
 
 export async function onRequestPost({ request, env }) {
   if (!env.ANTHROPIC_API_KEY) return json({ error: 'AI er ikki sett upp' }, 404);
@@ -44,6 +51,8 @@ export async function onRequestPost({ request, env }) {
     return json({
       latin: String(out.latin || ''), name_fo: String(out.name_fo || ''), name_en: String(out.name_en || ''),
       confidence: String(out.confidence || ''), note_fo: String(out.note_fo || ''),
+      species: ['skora', 'apu', 'folfod'].includes(out.species) ? out.species : 'ukent',
+      invasive: ['ja', 'nei', 'óvist'].includes(out.invasive) ? out.invasive : 'óvist',
     });
   } catch {
     return json({ error: 'Plantan kundi ikki kennast' }, 502);

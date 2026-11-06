@@ -1,4 +1,5 @@
-import { json, str, num, verifyTurnstile, IMAGE_TYPES, MAX_PHOTO_BYTES } from '../../lib/util.js';
+import { json, str, num, verifyTurnstile, IMAGE_TYPES, MAX_PHOTO_BYTES, SPECIES } from '../../lib/util.js';
+import { nearestKommuna } from '../../lib/places.js';
 
 export async function onRequestPost(ctx) {
   const { env } = ctx;
@@ -33,23 +34,32 @@ async function handle({ request, env }) {
   if ((lat === null || lon === null) && place.length < 3)
     return json({ error: 'Staður manglar' }, 400);
 
+  const species = SPECIES.includes(form.get('species')) ? form.get('species') : 'ukent';
+  const kommuna = nearestKommuna(lat, lon);
+  const now = new Date().toISOString();
+
   const id = crypto.randomUUID();
   const ext = photo.type === 'image/png' ? 'png' : photo.type === 'image/webp' ? 'webp' : 'jpg';
   const key = `${id}.${ext}`;
 
   await env.PHOTOS.put(key, await photo.arrayBuffer(), { httpMetadata: { contentType: photo.type } });
 
-  await env.DB.prepare(
-    `INSERT INTO reports (id, created_at, photo_key, lat, lon, accuracy, place, description, ai_name, ai_latin, ai_confidence, status)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 'nyggj')`
-  ).bind(
-    id, new Date().toISOString(), key,
-    lat, lon, accuracy === null ? null : Math.round(accuracy),
-    place, description,
-    str(form.get('ai_name'), 120) || null,
-    str(form.get('ai_latin'), 120) || null,
-    str(form.get('ai_confidence'), 20) || null,
-  ).run();
+  await env.DB.batch([
+    env.DB.prepare(
+      `INSERT INTO reports (id, created_at, photo_key, lat, lon, accuracy, place, description, ai_name, ai_latin, ai_confidence,
+                            status, species, kommuna, source, status_at)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 'frab', ?12, ?13, 'borgari', ?2)`
+    ).bind(
+      id, now, key,
+      lat, lon, accuracy === null ? null : Math.round(accuracy),
+      place, description,
+      str(form.get('ai_name'), 120) || null,
+      str(form.get('ai_latin'), 120) || null,
+      str(form.get('ai_confidence'), 20) || null,
+      species, kommuna,
+    ),
+    env.DB.prepare(`INSERT INTO events (report_id, at, status, by) VALUES (?1, ?2, 'frab', 'Borgari')`).bind(id, now),
+  ]);
 
-  return json({ ok: true, id });
+  return json({ ok: true, id, kommuna });
 }

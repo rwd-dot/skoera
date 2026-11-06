@@ -1,7 +1,8 @@
-import { json } from '../../../lib/util.js';
+import { json, accountFor } from '../../../lib/util.js';
 
-export async function onRequest({ request, env, next }) {
-  const auth = request.headers.get('Authorization') || '';
-  if (!env.ADMIN_TOKEN || auth !== `Bearer ${env.ADMIN_TOKEN}`) return json({ error: 'unauthorized' }, 401);
+export async function onRequest({ request, env, next, data }) {
+  const acc = accountFor(env, request);
+  if (!acc) return json({ error: 'unauthorized' }, 401);
+  data.account = acc;
   return next();
 }

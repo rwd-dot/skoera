@@ -1,7 +1,10 @@
-# Skøra – fráboðanir
+# Innræsnar Plantur (áður Skøra)
 
-Fólk taka mynd av skøru, GPS-staðið verður tikið við, og fráboðanin verður goymd.
-Admin-síðan (`/admin`) vísir allar fráboðanir á korti og í lista.
+Fólk taka mynd av innræsnum plantum (garðaskøra, apublóma, loðið hóvblað), GPS-staðið verður tikið við, og fráboðanin fer til ta kommunu, har staðið er.
+Forsíðan hevur tríggjar partar: *Boða frá*, *Kort* (almenna kortið við støðu og iNaturalist-fundum) og *Kenn plantuna*.
+`/admin` er fyri kommunurnar: hvør kommuna ritar inn við sínum lykli og dagførir støðuna á sínum støðum
+(fráboðað → týning byrjað → burturbeint). Burturbeind støð verða merkt „fylg upp“ eftir eitt ár.
+Allar kommunur síggja alt, men kunnu bert broyta síni egnu.
 
 **Stack:** Cloudflare Pages + Pages Functions, D1 (dátur), R2 (myndir), Turnstile (spam), valfrítt Claude API (kenna plantuna).
 
@@ -44,3 +47,16 @@ schema.sql         D1-talvan
 ## Myndir og GPS
 
 Myndin verður minkað í telefonini (max 1600 px, JPEG) áðrenn upplød. Canvas strikar EXIF, so eingin GPS-metadata verður goymd í myndini; staðið verður goymt sær í D1.
+
+## Innritan fyri kommunur
+
+- `ADMIN_TOKEN` (Secret): atgongd til allar kommunur.
+- `KOMMUNA_TOKENS` (Secret): JSON við einum lykli fyri hvørja kommunu, t.d.
+  `{"Tórshavnar kommuna":"<openssl rand -hex 24>","Vága kommuna":"<…>"}`
+  Kommununavnið skal vera stavað júst sum í `lib/places.js`.
+
+## Dagføring til Innræsnar Plantur (nov. 2026)
+
+1. D1 → skora → Console: koyr `migrations/002_innraesnar_plantur.sql` eina ferð.
+2. Set `KOMMUNA_TOKENS` undir Variables and Secrets.
+3. Upploð fílurnar og lat Cloudflare deploya.

@@ -3,70 +3,123 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Skøra – boða frá</title>
-<meta name="description" content="Sært tú skøru? Tak mynd og boða frá, so kann hon verða burturbeind.">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌼</text></svg>">
+<title>Innræsnar Plantur</title>
+<meta name="description" content="Sært tú eina innræsna plantu? Tak mynd og boða frá, so kann hon verða burturbeind.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='24' fill='%233E6A2D'/><text x='50' y='66' font-size='46' font-family='sans-serif' font-weight='700' text-anchor='middle' fill='white'>IP</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Karla:wght@400;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/style.css">
+<link href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="/ip.css">
 </head>
 <body>
-<div class="wrap">
-  <header><h1>Skøra<small>Sært tú ókrút? Boða frá.</small></h1></header>
+<header class="top"><div class="wrap">
+  <a class="brand" href="#boda"><div class="mark" aria-hidden="true">IP</div><div><h1>Innræsnar Plantur</h1><small>Boða frá · Fylg við · Týn</small></div></a>
+  <nav class="tabs" aria-label="Høvuðsvalmynd">
+    <a href="#boda" id="t-boda">Boða frá</a><a href="#kort" id="t-kort">Kort</a><a href="#plantur" id="t-plantur">Kenn plantuna</a>
+  </nav>
+</div></header>
 
-  <form id="form" onsubmit="return false">
-    <label class="shot" id="shot">
-      <input type="file" id="photo" accept="image/*" capture="environment">
-      <div class="empty" id="shotEmpty">
-        <div>
-          <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 22h10l5-7h18l5 7h10v30H8z"/><circle cx="32" cy="36" r="10"/></svg>
-          <b>Tak mynd av plantuni</b>
-          <div class="hint">Kom so tætt, at blómur og bløð síggjast væl</div>
+<main class="wrap">
+<!-- BOÐA FRÁ -->
+<section class="view" id="v-boda">
+  <h2 class="h2">Sært tú eina innræsna plantu?</h2>
+  <p class="lead">Tak mynd, vís hvar hon veksur, og send. Tú skalt ikki rita inn ella leggja nakra app inn.</p>
+  <form id="form" class="report" style="margin-top:18px" onsubmit="return false">
+    <div class="steps">
+      <div class="stack">
+        <label class="f" for="photo">1. Mynd</label>
+        <label class="shot" id="shot"><input type="file" id="photo" accept="image/*" capture="environment">
+          <div class="empty" id="shotEmpty"><div>
+            <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 22h10l5-7h18l5 7h10v30H8z"/><circle cx="32" cy="36" r="10"/></svg>
+            <b>Tak mynd av plantuni</b><div class="hint">Kom so tætt, at blómur og bløð síggjast væl</div></div></div>
+          <img id="preview" alt="Tín mynd" hidden>
+          <span class="retake" id="retake" hidden>Tak nýggja mynd</span>
+        </label>
+        <div id="aiBtnWrap" hidden><button type="button" class="btn sm ghost" id="aiBtn">Hvat planta er hetta?</button></div>
+        <div class="ai" id="aiBox" hidden></div>
+      </div>
+      <div>
+        <div class="f">2. Hvør planta heldur tú, tað er?</div>
+        <div class="chips" id="chips"></div>
+        <div class="hint" style="margin-top:6px">Ivast tú? Vel „Veit ikki“, ella hygg í <a href="#plantur">Kenn plantuna</a>.</div>
+      </div>
+    </div>
+    <div class="steps">
+      <div class="stack">
+        <div class="f">3. Hvar veksur hon?</div>
+        <div class="loc" id="loc">
+          <div class="ldot"></div>
+          <div class="txt"><div id="locMain">Finni staðið…</div><div class="hint" id="locSub"></div></div>
+          <button type="button" class="linkbtn" id="locRetry">Royn aftur</button>
         </div>
+        <div class="minimap" id="minimap"></div>
+        <div class="hint">Trýst á kortið fyri at flyta prikkin, um staðið ikki er rætt.</div>
+        <input type="text" id="place" maxlength="200" placeholder="Staðarnavn, t.d. við ánna í Hoyvík" aria-label="Staðarnavn">
       </div>
-      <img id="preview" alt="Mynd av plantuni" hidden>
-      <span class="retake" id="retake" hidden>Tak nýggja mynd</span>
-    </label>
-
-    <div class="ai" id="aiBox" hidden></div>
-    <div style="margin-top:10px" id="aiBtnWrap" hidden>
-      <button type="button" class="secondary" id="aiBtn">Hvat planta er hetta?</button>
-    </div>
-
-    <div class="field">
-      <span>Staður</span>
-      <div class="loc" id="loc">
-        <div class="dot"></div>
-        <div class="txt"><div id="locMain">Finni staðið…</div><div class="hint" id="locSub"></div></div>
-        <button type="button" class="linkbtn" id="locRetry">Royn aftur</button>
+      <div>
+        <label class="f" for="desc">4. Frágreiðing <span class="hint">(valfrítt)</span></label>
+        <textarea id="desc" maxlength="2000" placeholder="Hvussu nógv er har? Við vegin, í haganum, við ánna?"></textarea>
       </div>
-      <input type="text" id="place" maxlength="200" placeholder="Staðarnavn, t.d. við ánna í Hoyvík" style="margin-top:8px" aria-label="Staðarnavn">
-      <div class="hint">Skriva staðarnavn um GPS ikki riggar, ella fyri at gera tað greiðari.</div>
+      <div class="ts" id="ts"></div>
+      <button class="btn big" id="send" type="button" disabled>Send fráboðan</button>
+      <div class="msg" id="sendMsg" role="status"></div>
     </div>
-
-    <div class="field">
-      <label for="desc"><span>Frágreiðing</span></label>
-      <textarea id="desc" maxlength="2000" placeholder="Hvussu nógv er har? Veksur tað við vegin, í haganum, í einum urtagarði?"></textarea>
-    </div>
-
-    <div class="ts" id="ts"></div>
-    <button class="primary" id="send" type="button" disabled>Send fráboðan</button>
-    <div class="msg" id="sendMsg" role="status"></div>
   </form>
-
-  <div class="thanks" id="thanks" hidden>
+  <div class="thanks card" id="thanks" hidden>
     <svg viewBox="0 0 84 84" fill="none" aria-hidden="true"><circle cx="42" cy="42" r="38" fill="var(--moss)"/><path d="M26 43l11 11 21-24" stroke="var(--moss-ink)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>
     <h2>Takk fyri!</h2>
-    <p>Fráboðanin er send.</p>
-    <button class="primary" id="again" type="button">Boða frá aftur</button>
+    <p id="thanksTxt">Fráboðanin er send.</p>
+    <div class="acts" style="justify-content:center"><a class="btn" href="#kort">Sí kortið</a><button class="btn ghost" id="again" type="button">Boða frá aftur</button></div>
   </div>
-</div>
+</section>
 
+<!-- KORT -->
+<section class="view" id="v-kort" hidden>
+  <h2 class="h2">Kortið</h2>
+  <p class="lead">Litirnir vísa, hvussu langt arbeiðið er komið á hvørjum staði. Stað, sum er burturbeint, skal fylgjast upp eftir eitt ár, tí plantan kann koma aftur.</p>
+  <div class="filters">
+    <button class="sbtn" data-s="frab" aria-pressed="true"><span class="dot d-frab"></span>Fráboðað</button>
+    <button class="sbtn" data-s="byrj" aria-pressed="true"><span class="dot d-byrj"></span>Týning byrjað</button>
+    <button class="sbtn" data-s="burt" aria-pressed="true"><span class="dot d-burt"></span>Burturbeint</button>
+    <button class="sbtn" data-s="fylg" aria-pressed="true"><span class="dot d-fylg"></span>Fylg upp</button>
+    <button class="sbtn" data-s="inat" aria-pressed="true"><span class="legend-inat"></span>iNaturalist</button>
+    <select id="fKom" aria-label="Kommuna"><option value="">Allar kommunur</option></select>
+    <select id="fSp" aria-label="Planta"><option value="">Allar plantur</option></select>
+  </div>
+  <div class="split">
+    <div class="bigmap" id="bigmap"></div>
+    <div class="panel" id="panel"><p class="hint">Heinti kortið…</p></div>
+  </div>
+</section>
+
+<!-- PLANTUR -->
+<section class="view" id="v-plantur" hidden>
+  <h2 class="h2">Kenn plantuna</h2>
+  <p class="lead">Hesar plantur eru komnar til Føroya og breiða seg á kostnað av føroysku plantunum. Samanber við tínar myndir, áðrenn tú boðar frá.</p>
+  <div class="species" id="species"></div>
+</section>
+</main>
+<footer><div class="wrap">Innræsnar Plantur · Kort: © OpenStreetMap · Fund frá <a href="https://www.inaturalist.org" target="_blank" rel="noopener">iNaturalist</a> koma sjálvvirkandi við.</div></footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="/shared.js"></script>
 <script>
 (() => {
   const $ = id => document.getElementById(id);
-  let photoBlob = null, coords = null, aiResult = null, cfg = {}, tsWidget = null, tsToken = '';
+  const { SPECIES, STATUS, esc, fmt, key, pill, baseMap, marker, inatMarker, img } = IP;
+  let photoBlob = null, coords = null, aiResult = null, cfg = {}, tsWidget = null, tsToken = '', species = null;
+
+  // ---------- routing ----------
+  let big, mini, pin, layer, inatLayer, data = null, inat = [];
+  const VIEWS = ['boda', 'kort', 'plantur'];
+  function route(){
+    const v = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'boda';
+    for (const n of VIEWS){ $('v-' + n).hidden = n !== v; if (n === v) $('t-' + n).setAttribute('aria-current', 'page'); else $('t-' + n).removeAttribute('aria-current'); }
+    if (v === 'kort'){ if (!big) initBig(); setTimeout(() => big.invalidateSize(), 30); loadMap(); }
+    if (v === 'boda'){ if (!mini) initMini(); setTimeout(() => mini.invalidateSize(), 30); }
+  }
+  addEventListener('hashchange', route);
 
   // ---------- config + Turnstile ----------
   fetch('/api/config').then(r => r.json()).then(c => {
@@ -83,30 +136,41 @@
       s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTsLoad&render=explicit';
       s.async = true; document.head.append(s);
     }
+    if (photoBlob) $('aiBtnWrap').hidden = !cfg.aiEnabled;
     validate();
   }).catch(() => {});
+
+  // ---------- species chips ----------
+  const chips = $('chips');
+  for (const [k, s] of Object.entries(SPECIES)){
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.dataset.k = k; b.setAttribute('aria-pressed', 'false');
+    b.innerHTML = (s.img[0] ? `<img src="${img(s.img[0])}" alt="">` : '<div class="q" aria-hidden="true">?</div>') + `<span>${s.fo}</span>`;
+    b.onclick = () => setSpecies(k);
+    chips.append(b);
+  }
+  function setSpecies(k){ species = k; chips.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', String(c.dataset.k === k))); }
 
   // ---------- photo ----------
   function compress(file){
     return new Promise((res, rej) => {
-      const img = new Image();
-      img.onload = () => {
-        let max = 1600, q = 0.8, done = false;
+      const im = new Image();
+      im.onload = () => {
+        let max = 1600, q = 0.8;
         const attempt = () => {
-          const s = Math.min(1, max / Math.max(img.width, img.height));
+          const s = Math.min(1, max / Math.max(im.width, im.height));
           const c = document.createElement('canvas');
-          c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
-          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          c.width = Math.round(im.width * s); c.height = Math.round(im.height * s);
+          c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
           c.toBlob(b => {
             if (!b) return rej(new Error('Myndin kundi ikki lesast.'));
-            if (b.size < 900000 || max < 700){ URL.revokeObjectURL(img.src); res(b); }
+            if (b.size < 900000 || max < 700){ URL.revokeObjectURL(im.src); res(b); }
             else { q = Math.max(0.55, q - 0.08); max = Math.round(max * 0.85); attempt(); }
           }, 'image/jpeg', q);
         };
         attempt();
       };
-      img.onerror = () => rej(new Error('Myndin kundi ikki lesast.'));
-      img.src = URL.createObjectURL(file);
+      im.onerror = () => rej(new Error('Myndin kundi ikki lesast.'));
+      im.src = URL.createObjectURL(file);
     });
   }
   $('photo').onchange = async e => {
@@ -122,22 +186,61 @@
     validate();
   };
 
+  // ---------- AI ----------
+  $('aiBtn').onclick = async () => {
+    if (!photoBlob) return;
+    const box = $('aiBox'); box.hidden = false; box.className = 'ai'; box.textContent = 'Hyggi at myndini…';
+    $('aiBtn').disabled = true;
+    const fd = new FormData(); fd.append('photo', photoBlob, 'photo.jpg');
+    try{
+      const r = await fetch('/api/identify', { method: 'POST', body: fd });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Plantan kundi ikki kennast');
+      aiResult = d; box.innerHTML = ''; box.className = 'ai ' + (d.invasive === 'ja' ? 'ja' : d.invasive === 'nei' ? 'nei' : '');
+      const who = document.createElement('div'); who.className = 'who';
+      who.textContent = (d.name_fo || d.name_en || 'Ókend planta') + ' ';
+      const la = document.createElement('span'); la.className = 'latin'; la.textContent = d.latin; who.append(la);
+      const inv = document.createElement('div'); inv.style.fontWeight = '700';
+      inv.textContent = d.invasive === 'ja' ? 'Tykist at vera innræsin.' : d.invasive === 'nei' ? 'Tykist ikki at vera innræsin.' : 'Óvist, um hon er innræsin. Samanber við myndirnar í Kenn plantuna.';
+      const n = document.createElement('div'); n.textContent = d.note_fo;
+      const c = document.createElement('div'); c.className = 'hint'; c.textContent = `Vissa: ${d.confidence || '–'}. AI-meting, ikki endalig.`;
+      box.append(who, inv, n, c);
+      if (d.species && d.species !== 'ukent' && !species) setSpecies(d.species);
+    }catch(e){ box.textContent = e.message + '. Tú kanst senda uttan.'; $('aiBtn').disabled = false; }
+  };
+
   // ---------- location ----------
+  function setPin(lat, lon){
+    if (!mini) return;
+    if (pin) pin.setLatLng([lat, lon]);
+    else pin = L.circleMarker([lat, lon], { radius: 10, color: '#22281E', weight: 2, fillColor: IP.css('--s-frab'), fillOpacity: 1 }).addTo(mini);
+    mini.setView([lat, lon], Math.max(mini.getZoom(), 14));
+  }
+  function initMini(){
+    mini = baseMap('minimap');
+    mini.on('click', e => {
+      coords = { lat: +e.latlng.lat.toFixed(6), lon: +e.latlng.lng.toFixed(6), acc: null };
+      if (pin) pin.setLatLng(e.latlng); else setPin(coords.lat, coords.lon);
+      $('loc').className = 'loc ok'; $('locMain').textContent = 'Staður valdur á kortinum'; $('locSub').textContent = `${coords.lat.toFixed(5)}, ${coords.lon.toFixed(5)}`;
+      validate();
+    });
+    if (coords) setPin(coords.lat, coords.lon);
+  }
   function locate(){
     $('loc').className = 'loc'; $('locMain').textContent = 'Finni staðið…'; $('locSub').textContent = '';
     if (!navigator.geolocation) return locFail('Telefonin kann ikki finna staðið');
     navigator.geolocation.getCurrentPosition(p => {
       coords = { lat: +p.coords.latitude.toFixed(6), lon: +p.coords.longitude.toFixed(6), acc: Math.round(p.coords.accuracy) };
       $('loc').className = 'loc ok';
-      $('locMain').textContent = `${coords.lat.toFixed(5)}, ${coords.lon.toFixed(5)}`;
+      $('locMain').textContent = 'Staðið er funnið';
       $('locSub').textContent = `Neyvt uppá umleið ${coords.acc} m`;
-      validate();
+      setPin(coords.lat, coords.lon); validate();
     }, err => locFail(err.code === 1 ? 'Loyvi til stað varð ikki givið' : 'Staðið fanst ikki'),
     { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
   }
   function locFail(t){
-    coords = null; $('loc').className = 'loc bad';
-    $('locMain').textContent = t; $('locSub').textContent = 'Skriva staðarnavn niðanfyri';
+    if (coords) return;
+    $('loc').className = 'loc bad'; $('locMain').textContent = t; $('locSub').textContent = 'Trýst á kortið ella skriva staðarnavn';
     validate();
   }
   $('locRetry').onclick = locate;
@@ -150,36 +253,15 @@
   }
   function msg(t, err){ const m = $('sendMsg'); m.textContent = t; m.className = 'msg' + (err ? ' err' : ''); }
 
-  // ---------- AI ----------
-  $('aiBtn').onclick = async () => {
-    if (!photoBlob) return;
-    const box = $('aiBox'); box.hidden = false; box.textContent = 'Hyggi at myndini…';
-    $('aiBtn').disabled = true;
-    const fd = new FormData(); fd.append('photo', photoBlob, 'photo.jpg');
-    try{
-      const r = await fetch('/api/identify', { method: 'POST', body: fd });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || 'Plantan kundi ikki kennast');
-      aiResult = d; box.innerHTML = '';
-      const who = document.createElement('div'); who.className = 'who';
-      who.textContent = (d.name_fo || d.name_en || 'Ókend planta') + ' ';
-      const lat = document.createElement('span'); lat.className = 'latin'; lat.textContent = d.latin; who.append(lat);
-      const n = document.createElement('div'); n.textContent = d.note_fo;
-      const c = document.createElement('div'); c.className = 'hint'; c.textContent = `Vissa: ${d.confidence || '–'}. AI-meting, ikki endalig.`;
-      box.append(who, n, c);
-    }catch(e){
-      box.textContent = e.message + '. Tú kanst senda uttan.'; $('aiBtn').disabled = false;
-    }
-  };
-
   // ---------- send ----------
   $('send').onclick = async () => {
     $('send').disabled = true; msg('Sendi…');
     const fd = new FormData();
     fd.append('photo', photoBlob, 'photo.jpg');
-    if (coords){ fd.append('lat', coords.lat); fd.append('lon', coords.lon); fd.append('accuracy', coords.acc); }
+    if (coords){ fd.append('lat', coords.lat); fd.append('lon', coords.lon); if (coords.acc != null) fd.append('accuracy', coords.acc); }
     fd.append('place', $('place').value.trim());
     fd.append('description', $('desc').value.trim());
+    fd.append('species', species || 'ukent');
     if (aiResult){
       fd.append('ai_name', aiResult.name_fo || aiResult.name_en || '');
       fd.append('ai_latin', aiResult.latin || '');
@@ -190,24 +272,71 @@
       const r = await fetch('/api/report', { method: 'POST', body: fd });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || `Fráboðanin varð ikki send (HTTP ${r.status})`);
-      $('form').hidden = true; $('thanks').hidden = false; msg('');
+      $('thanksTxt').textContent = d.kommuna ? `Fráboðanin er send til ${d.kommuna}.` : 'Fráboðanin er send.';
+      $('form').hidden = true; $('thanks').hidden = false; msg(''); data = null;
     }catch(e){
       msg(e.message + '. Kanna sambandið og royn aftur.', true);
       if (tsWidget !== null){ turnstile.reset(tsWidget); tsToken = ''; }
       validate();
     }
   };
-
   $('again').onclick = () => {
-    photoBlob = aiResult = null;
+    photoBlob = aiResult = null; setSpecies(null);
     $('photo').value = ''; $('preview').hidden = true; $('shotEmpty').hidden = false; $('retake').hidden = true;
     $('shot').classList.remove('has'); $('aiBox').hidden = true; $('aiBtnWrap').hidden = true;
     $('desc').value = ''; $('place').value = '';
     if (tsWidget !== null){ turnstile.reset(tsWidget); tsToken = ''; }
-    $('thanks').hidden = true; $('form').hidden = false; locate(); validate();
+    $('thanks').hidden = true; $('form').hidden = false; coords = null; locate(); validate();
+    setTimeout(() => mini && mini.invalidateSize(), 30);
   };
 
-  locate();
+  // ---------- map ----------
+  const show = { frab: true, byrj: true, burt: true, fylg: true, inat: true };
+  document.querySelectorAll('.sbtn').forEach(b => b.onclick = () => { show[b.dataset.s] = !show[b.dataset.s]; b.setAttribute('aria-pressed', String(show[b.dataset.s])); renderMap(); });
+  for (const [k, s] of Object.entries(SPECIES)) if (k !== 'ukent') $('fSp').append(new Option(s.fo, k));
+  $('fKom').onchange = $('fSp').onchange = () => renderMap(true);
+  function initBig(){ big = baseMap('bigmap'); layer = L.layerGroup().addTo(big); inatLayer = L.layerGroup().addTo(big); }
+  async function loadMap(){
+    if (data) return renderMap();
+    try{
+      const [m, i] = await Promise.all([fetch('/api/map').then(r => r.json()), fetch('/api/inat').then(r => r.ok ? r.json() : { observations: [] }).catch(() => ({ observations: [] }))]);
+      data = m.reports || [];
+      const imported = new Set(data.map(r => r.inat_id).filter(Boolean));
+      inat = (i.observations || []).filter(o => !imported.has(o.id));
+      const ks = [...new Set(data.map(r => r.kommuna).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fo'));
+      $('fKom').length = 1; ks.forEach(k => $('fKom').append(new Option(k, k)));
+      renderMap(true);
+    }catch{ $('panel').innerHTML = '<p class="hint">Kortið kundi ikki heintast. Royn aftur um eina løtu.</p>'; }
+  }
+  function renderMap(fit){
+    if (!big || !data) return;
+    layer.clearLayers(); inatLayer.clearLayers();
+    const k = $('fKom').value, sp = $('fSp').value;
+    const vis = data.filter(r => show[key(r)] && (!k || r.kommuna === k) && (!sp || r.species === sp));
+    for (const r of vis){
+      marker(r, layer).bindPopup(`<b>${SPECIES[r.species]?.fo || 'Ókend planta'}</b><br>${pill(r)}<br><span class="hint">${esc(r.kommuna || '')}<br>Fráboðað ${fmt(r.created_at)}${r.status !== 'frab' ? `<br>${STATUS[r.status]} ${fmt(r.status_at)}` : ''}</span>`);
+    }
+    const iv = show.inat ? inat.filter(o => !sp || o.sp === sp) : [];
+    for (const o of iv){
+      inatMarker(o, inatLayer).bindPopup(`<div class="inat-pop">${o.photo ? `<img src="${esc(o.photo)}" alt="">` : ''}<b>${SPECIES[o.sp].fo}</b><br>${esc(o.observedOn || '')}${o.user ? ' · ' + esc(o.user) : ''}<br><a href="${esc(o.url)}" target="_blank" rel="noopener">Opna á iNaturalist</a></div>`, { maxWidth: 240 });
+    }
+    const pts = [...vis.map(r => [r.lat, r.lon]), ...iv.map(o => [o.lat, o.lon])];
+    if (fit && pts.length) big.fitBounds(pts, { padding: [30, 30], maxZoom: 13 });
+    const c = s => vis.filter(r => key(r) === s).length;
+    $('panel').innerHTML = `<div class="stats">${[['frab', 'Fráboðað'], ['byrj', 'Týning byrjað'], ['burt', 'Burturbeint'], ['fylg', 'Fylg upp']].map(([s, l]) => `<div class="card stat"><b>${c(s)}</b><span><i class="dot d-${s}"></i>${l}</span></div>`).join('')}</div>
+      <div class="card" style="padding:14px 16px"><b>${iv.length}</b> fund frá iNaturalist á kortinum. <span class="hint">Fund, sum kommunan hevur tikið inn, standa sum vanligar fráboðanir.</span></div>
+      <p class="hint">Trýst á ein prikk fyri at síggja støðuna. Myndir og frágreiðingar síggja bert kommunurnar.</p>`;
+  }
+
+  // ---------- guide ----------
+  $('species').innerHTML = IP.guideHtml();
+  $('species').addEventListener('click', e => {
+    const a = e.target.closest('a'); if (!a) return;
+    if (a.dataset.sp) setTimeout(() => setSpecies(a.dataset.sp), 0);
+    if (a.dataset.f){ $('fSp').value = a.dataset.f; setTimeout(() => renderMap(true), 80); }
+  });
+
+  locate(); validate(); route();
 })();
 </script>
 </body>
