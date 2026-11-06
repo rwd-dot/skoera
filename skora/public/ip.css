@@ -173,3 +173,8 @@ dialog::backdrop{background:rgba(0,0,0,.7)}
 .err{color:var(--warn)}
 .sp h4{font:700 .78rem var(--body);letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
 .looks{margin:0;padding-left:20px;display:grid;gap:6px;max-width:66ch}
+
+/* logo */
+.brand .logo{height:64px;width:auto;display:block;border-radius:6px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:520px){.brand .logo{height:52px}}
