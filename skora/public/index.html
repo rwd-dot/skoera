@@ -300,7 +300,7 @@
   async function loadMap(){
     if (data) return renderMap();
     try{
-      const [m, i] = await Promise.all([fetch('/api/map').then(r => r.json()), fetch('/api/inat').then(r => r.ok ? r.json() : { observations: [] }).catch(() => ({ observations: [] }))]);
+      const [m, i] = await Promise.all([fetch('/api/map').then(r => r.json()), IP.loadInat(() => fetch('/api/inat')).then(observations => ({ observations }))]);
       data = m.reports || [];
       const imported = new Set(data.map(r => r.inat_id).filter(Boolean));
       inat = (i.observations || []).filter(o => !imported.has(o.id));
