@@ -1,4 +1,4 @@
-import { json, num } from '../../../lib/util.js';
+import { json, num, str, SPECIES } from '../../../lib/util.js';
 import { getInat } from '../../../lib/inat.js';
 import { kommuneFor } from '../../../lib/places.js';
 
@@ -10,8 +10,15 @@ export async function onRequestPost({ request, env, data }) {
   const exists = await env.DB.prepare('SELECT id FROM reports WHERE inat_id = ?1').bind(inatId).first();
   if (exists) return json({ ok: true, id: exists.id, existed: true });
 
-  const { observations } = await getInat(env);
-  const o = (observations || []).find(x => x.id === inatId);
+  const { observations } = await getInat(env).catch(() => ({ observations: [] }));
+  let o = (observations || []).find(x => x.id === inatId);
+  // Hvis serverens iNaturalist-cache er tom (fx HTTP 429), bruges observationen, som browseren selv har hentet
+  const b = body.obs;
+  if (!o && b && Number(b.id) === inatId && SPECIES.includes(b.sp) && num(b.lat, -90, 90) !== null && num(b.lon, -180, 180) !== null)
+    o = { id: inatId, sp: b.sp, lat: Number(b.lat), lon: Number(b.lon), url: `https://www.inaturalist.org/observations/${inatId}`,
+      observedOn: /^\d{4}-\d{2}-\d{2}$/.test(b.observedOn || '') ? b.observedOn : null, place: str(b.place, 200), user: str(b.user, 80),
+      photo: /^https:\/\/[a-z0-9.-]*inaturalist[a-z0-9.-]*\.(org|com)\//.test(b.photo || '') ? b.photo : null,
+      photoLarge: /^https:\/\/[a-z0-9.-]*inaturalist[a-z0-9.-]*\.(org|com)\//.test(b.photoLarge || '') ? b.photoLarge : null };
   if (!o) return json({ error: 'Observationen blev ikke fundet' }, 404);
   const kommuna = await kommuneFor(o.lat, o.lon);
   if (data.account.kommuna !== '*' && data.account.kommuna !== kommuna)
