@@ -106,9 +106,9 @@
   }
   async function loadInat(){
     try{
-      const r = await api('/api/admin/inat'); const d = await r.json();
+      const obs = await IP.loadInat(() => api('/api/admin/inat'));
       const imported = new Set(reports.map(x => x.inat_id).filter(Boolean));
-      inat = (d.observations || []).filter(o => !imported.has(o.id)); render();
+      inat = obs.filter(o => !imported.has(o.id)); render();
     }catch{}
   }
   $('reload').onclick = load;
@@ -151,7 +151,7 @@
   document.addEventListener('click', async e => {
     const b = e.target.closest('[data-imp]'); if (!b) return;
     b.disabled = true; b.textContent = 'Tager ind…';
-    const r = await api('/api/admin/import-inat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ inat_id: Number(b.dataset.imp) }) });
+    const r = await api('/api/admin/import-inat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ inat_id: Number(b.dataset.imp), obs: inat.find(o => o.id === Number(b.dataset.imp)) }) });
     const d = await r.json().catch(() => ({}));
     if (!r.ok){ b.disabled = false; b.textContent = 'Tag ind som indberetning'; const m = document.querySelector(`[data-impmsg="${b.dataset.imp}"]`); if (m) m.textContent = d.error || 'Det lykkedes ikke'; return; }
     big.closePopup(); selected = d.id; await load();
