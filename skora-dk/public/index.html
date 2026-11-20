@@ -51,8 +51,8 @@
         <div class="f">3. Hvor vokser den?</div>
         <div class="loc" id="loc">
           <div class="ldot"></div>
-          <div class="txt"><div id="locMain">Finder din placering…</div><div class="hint" id="locSub"></div></div>
-          <button type="button" class="linkbtn" id="locRetry">Prøv igen</button>
+          <div class="txt"><div id="locMain">Vælg hvor planten vokser</div><div class="hint" id="locSub">Tryk på knappen, eller tryk på kortet</div></div>
+          <button type="button" class="btn sm" id="locRetry">Brug min placering</button>
         </div>
         <div class="minimap" id="minimap"></div>
         <div class="hint">Tryk på kortet for at flytte prikken, hvis placeringen ikke passer.</div>
@@ -287,7 +287,9 @@
     $('shot').classList.remove('has'); $('aiBox').hidden = true; $('aiBtnWrap').hidden = true;
     $('desc').value = ''; $('place').value = '';
     if (tsWidget !== null){ turnstile.reset(tsWidget); tsToken = ''; }
-    $('thanks').hidden = true; $('form').hidden = false; coords = null; locate(); validate();
+    $('thanks').hidden = true; $('form').hidden = false; coords = null;
+    if (pin) { pin.remove(); pin = null; }
+    $('loc').className = 'loc'; $('locMain').textContent = 'Vælg hvor planten vokser'; $('locSub').textContent = 'Tryk på knappen, eller tryk på kortet'; validate();
     setTimeout(() => mini && mini.invalidateSize(), 30);
   };
 
@@ -337,7 +339,7 @@
     if (a.dataset.f){ $('fSp').value = a.dataset.f; setTimeout(() => renderMap(true), 80); }
   });
 
-  locate(); validate(); route();
+  validate(); route();
 })();
 </script>
 </body>
