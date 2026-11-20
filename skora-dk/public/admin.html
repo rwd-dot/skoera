@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Invasive Planter – kommuner</title>
+<link rel="icon" href="/img/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="/ip.css">
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="/"><img class="logo" src="/img/logo.webp" alt="Invasive Planter"><div><h1 class="sr">Invasive Planter</h1><small>For kommuner</small></div></a>
+  <nav class="tabs" aria-label="Valmynd" id="nav" hidden>
+    <a href="#kort" id="t-kort">Kort</a><a href="#kommunur" id="t-kommunur">Kommuner</a>
+  </nav>
+  <div class="who" id="who"></div>
+</div></header>
+
+<main class="wrap">
+  <section id="login" class="card login" style="max-width:440px" hidden>
+    <h2 style="font-size:1.5rem">Log ind</h2>
+    <div><label class="f" for="token">Nøgle</label><input type="password" id="token" autocomplete="current-password"></div>
+    <div class="hint">Hver kommune har sin egen nøgle. Spørg administratoren, hvis du ikke har den.</div>
+    <button class="btn" id="loginBtn" type="button">Log ind</button>
+    <div class="msg err" id="loginMsg"></div>
+  </section>
+
+  <section class="view" id="v-kort" hidden>
+    <div class="filters">
+      <button class="sbtn" data-s="frab" aria-pressed="true"><span class="dot d-frab"></span>Indberettet</button>
+      <button class="sbtn" data-s="byrj" aria-pressed="true"><span class="dot d-byrj"></span>Bekæmpelse i gang</button>
+      <button class="sbtn" data-s="burt" aria-pressed="true"><span class="dot d-burt"></span>Fjernet</button>
+      <button class="sbtn" data-s="fylg" aria-pressed="true"><span class="dot d-fylg"></span>Følg op</button>
+      <button class="sbtn" data-s="inat" aria-pressed="true"><span class="legend-inat"></span>iNaturalist</button>
+      <select id="fKom" aria-label="Kommune"><option value="">Alle kommuner</option></select>
+      <select id="fSp" aria-label="Planta"><option value="">Alle planter</option></select>
+      <button class="btn sm ghost" id="csv" type="button">Hent som CSV</button>
+      <button class="btn sm ghost" id="reload" type="button">Opdater</button>
+    </div>
+    <div class="split">
+      <div class="bigmap" id="bigmap"></div>
+      <div class="panel" id="panel"></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-kommunur" hidden>
+    <h2 class="h2">Kommuner</h2>
+    <p class="lead">Alle kommuner bruger samme system og ser samme kort. Hver kommune opdaterer sine egne steder og kan hjælpe naboen.</p>
+    <div class="kgrid" style="margin-top:16px">
+      <div class="tablewrap card"><table><thead><tr><th>Kommune</th><th class="n">Indberettet</th><th class="n">Bekæmpelse i gang</th><th class="n">Fjernet</th><th class="n">Følg op</th></tr></thead><tbody id="ktab"></tbody></table></div>
+      <div class="card login" id="todo"></div>
+    </div>
+  </section>
+</main>
+<footer><div class="wrap">Invasive Planter · Udviklet og støttet af Regin W. Dalsgaard</div></footer>
+<dialog id="big"><img alt="Stort billede"></dialog>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="/shared.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const { SPECIES, STATUS, esc, fmt, key, pill, isFylg, baseMap, marker, inatMarker } = IP;
+  let token = '', acc = null, reports = [], inat = [], big, layer, inatLayer, selected = null, confirmDel = false;
+  try{ token = localStorage.getItem('skora_admin') || ''; }catch{}
+
+  const api = (path, opts = {}) => fetch(path, { ...opts, headers: { ...(opts.headers || {}), Authorization: 'Bearer ' + token } });
+  const canEdit = r => acc && (acc.kommuna === '*' || acc.kommuna === r.kommuna);
+  const photoOf = r => r.photo_key ? '/photo/' + r.photo_key : (r.photo_url || '');
+
+  // ---------- login ----------
+  function showLogin(err){
+    $('login').hidden = false; $('nav').hidden = true; $('v-kort').hidden = true; $('v-kommunur').hidden = true;
+    $('who').innerHTML = ''; $('loginMsg').textContent = err || '';
+  }
+  async function start(){
+    const r = await api('/api/admin/me').catch(() => null);
+    if (!r || r.status === 401) return showLogin(token ? 'Forkert nøgle.' : '');
+    acc = await r.json();
+    $('login').hidden = true; $('nav').hidden = false;
+    $('who').innerHTML = `Logget ind: <b>${esc(acc.kommuna === '*' ? 'Admin (alle kommuner)' : acc.kommuna)}</b> · <button class="linkbtn" id="logout" type="button">Log ud</button>`;
+    $('logout').onclick = () => { token = ''; try{ localStorage.removeItem('skora_admin'); }catch{} acc = null; showLogin(); };
+    if (acc.kommuna !== '*') $('fKom').value = '';
+    await load(); route();
+  }
+  $('loginBtn').onclick = () => {
+    token = $('token').value.trim(); if (!token) return;
+    try{ localStorage.setItem('skora_admin', token); }catch{}
+    start();
+  };
+  $('token').onkeydown = e => { if (e.key === 'Enter') $('loginBtn').click(); };
+
+  // ---------- data ----------
+  async function load(){
+    const r = await api('/api/admin/reports');
+    if (r.status === 401) return showLogin('Forkert nøgle.');
+    reports = (await r.json()).reports || [];
+    const ks = [...new Set(reports.map(x => x.kommuna).filter(Boolean).concat(acc.kommuna !== '*' ? [acc.kommuna] : []))].sort((a, b) => a.localeCompare(b, 'da'));
+    const cur = $('fKom').value; $('fKom').length = 1; ks.forEach(k => $('fKom').append(new Option(k, k))); $('fKom').value = cur;
+    loadInat(); render(); renderKom();
+  }
+  async function loadInat(){
+    try{
+      const r = await api('/api/admin/inat'); const d = await r.json();
+      const imported = new Set(reports.map(x => x.inat_id).filter(Boolean));
+      inat = (d.observations || []).filter(o => !imported.has(o.id)); render();
+    }catch{}
+  }
+  $('reload').onclick = load;
+
+  // ---------- routing ----------
+  function route(){
+    if (!acc) return;
+    const v = location.hash === '#kommunur' ? 'kommunur' : 'kort';
+    $('v-kort').hidden = v !== 'kort'; $('v-kommunur').hidden = v !== 'kommunur';
+    for (const n of ['kort', 'kommunur']) n === v ? $('t-' + n).setAttribute('aria-current', 'page') : $('t-' + n).removeAttribute('aria-current');
+    if (v === 'kort'){ if (!big) initMap(); setTimeout(() => big.invalidateSize(), 30); render(); }
+    else renderKom();
+  }
+  addEventListener('hashchange', route);
+
+  // ---------- map + list ----------
+  const show = { frab: true, byrj: true, burt: true, fylg: true, inat: true };
+  document.querySelectorAll('.sbtn').forEach(b => b.onclick = () => { show[b.dataset.s] = !show[b.dataset.s]; b.setAttribute('aria-pressed', String(show[b.dataset.s])); render(); });
+  for (const [k, s] of Object.entries(SPECIES)) $('fSp').append(new Option(s.fo, k));
+  $('fKom').onchange = $('fSp').onchange = () => { selected = null; render(true); };
+  function initMap(){ big = baseMap('bigmap', { layers: true }); layer = L.layerGroup().addTo(big); inatLayer = L.layerGroup().addTo(big); }
+  const visible = () => reports.filter(r => show[key(r)] && (!$('fKom').value || r.kommuna === $('fKom').value) && (!$('fSp').value || r.species === $('fSp').value));
+
+  function render(fit){
+    if (!big || !acc) return;
+    layer.clearLayers(); inatLayer.clearLayers();
+    const vis = visible();
+    for (const r of vis) if (r.lat != null)
+      marker(r, layer, { selected: r.id === selected, onClick: x => { selected = x.id; confirmDel = false; render(); } })
+        .bindTooltip(`${SPECIES[r.species]?.fo || ''} · ${esc(r.place || r.kommuna || '')}`);
+    const iv = show.inat ? inat.filter(o => !$('fSp').value || o.sp === $('fSp').value) : [];
+    for (const o of iv){
+      const m = inatMarker(o, inatLayer);
+      m.bindPopup(`<div class="inat-pop">${o.photo ? `<img src="${esc(o.photo)}" alt="">` : ''}<b>${SPECIES[o.sp].fo}</b> <i>${esc(o.taxon || '')}</i><br>${esc(o.observedOn || '')}${o.user ? ' · ' + esc(o.user) : ''}<br>${o.place ? esc(o.place) + '<br>' : ''}${o.obscured ? '<span class="err">Placeringen er upræcis</span><br>' : ''}<a href="${esc(o.url)}" target="_blank" rel="noopener">Åbn på iNaturalist</a><br><button class="btn sm" data-imp="${o.id}" type="button" style="margin-top:8px">Tag ind som indberetning</button><div class="msg err" data-impmsg="${o.id}"></div></div>`, { maxWidth: 240 });
+    }
+    if (fit){ const pts = vis.filter(r => r.lat != null).map(r => [r.lat, r.lon]); if (pts.length) big.fitBounds(pts, { padding: [30, 30], maxZoom: 13 }); }
+    const r = reports.find(x => x.id === selected);
+    r ? renderDetail(r) : renderList(vis);
+  }
+  document.addEventListener('click', async e => {
+    const b = e.target.closest('[data-imp]'); if (!b) return;
+    b.disabled = true; b.textContent = 'Tager ind…';
+    const r = await api('/api/admin/import-inat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ inat_id: Number(b.dataset.imp) }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok){ b.disabled = false; b.textContent = 'Tag ind som indberetning'; const m = document.querySelector(`[data-impmsg="${b.dataset.imp}"]`); if (m) m.textContent = d.error || 'Det lykkedes ikke'; return; }
+    big.closePopup(); selected = d.id; await load();
+  });
+
+  function renderList(vis){
+    const c = s => vis.filter(r => key(r) === s).length;
+    $('panel').innerHTML = `<div class="stats">${[['frab', 'Indberettet'], ['byrj', 'Bekæmpelse i gang'], ['burt', 'Fjernet'], ['fylg', 'Følg op']].map(([s, l]) => `<div class="card stat"><b>${c(s)}</b><span><i class="dot d-${s}"></i>${l}</span></div>`).join('')}</div><div class="list" id="list"></div>`;
+    const list = $('list');
+    if (!vis.length){ list.innerHTML = '<p class="hint" style="padding:20px 4px">Ingen steder passer til filtrene.</p>'; return; }
+    const mine = r => acc.kommuna !== '*' && r.kommuna === acc.kommuna ? 0 : 1;
+    const order = { fylg: 0, frab: 1, byrj: 2, burt: 3 };
+    [...vis].sort((a, b) => mine(a) - mine(b) || order[key(a)] - order[key(b)] || new Date(b.status_at || b.created_at) - new Date(a.status_at || a.created_at)).forEach(r => {
+      const b = document.createElement('button'); b.className = 'row'; b.type = 'button';
+      const ph = photoOf(r);
+      b.innerHTML = `${ph ? `<img src="${esc(ph)}" alt="" loading="lazy">` : '<div class="ph"></div>'}<div style="min-width:0"><div class="t">${esc(r.place || (r.lat != null ? r.lat.toFixed(4) + ', ' + r.lon.toFixed(4) : 'Ukendt sted'))}</div><div class="m">${SPECIES[r.species]?.fo || ''} · ${esc(r.kommuna || 'Ukendt kommune')}${r.source === 'inat' ? ' · iNaturalist' : ''} · ${fmt(r.status_at || r.created_at)}</div></div>${pill(r)}`;
+      b.onclick = () => { selected = r.id; confirmDel = false; if (r.lat != null) big.setView([r.lat, r.lon], Math.max(big.getZoom(), 13)); render(); };
+      list.append(b);
+    });
+  }
+
+  function renderDetail(r){
+    const ed = canEdit(r), ph = photoOf(r);
+    const col = { frab: 'd-frab', byrj: 'd-byrj', burt: 'd-burt' };
+    const tl = [...(r.events || [])].reverse().map(e => `<li><span class="dot ${col[e.status] || 'd-frab'}"></span><div><b>${STATUS[e.status] || e.status}</b> <span class="w">· ${fmt(e.at)} · ${esc(e.by)}</span>${e.note ? `<div>${esc(e.note)}</div>` : ''}</div></li>`).join('');
+    const btns = { frab: [['byrj', 'Bekæmpelse i gang']], byrj: [['burt', 'Fjernet'], ['byrj', 'Ny omgang']], burt: [['burt', 'Tjekket: intet igen'], ['byrj', 'Vokset op igen']] }[r.status] || [['byrj', 'Bekæmpelse i gang']];
+    const spSel = `<select id="dSp" aria-label="Art" ${ed ? '' : 'disabled'}>${Object.entries(SPECIES).map(([k, s]) => `<option value="${k}" ${k === r.species ? 'selected' : ''}>${s.fo}</option>`).join('')}</select>`;
+    const komSel = acc.kommuna === '*' ? `<select id="dKom" aria-label="Kommune">${[...new Set([r.kommuna, ...[...$('fKom').options].map(o => o.value)].filter(Boolean))].map(k => `<option ${k === r.kommuna ? 'selected' : ''}>${esc(k)}</option>`).join('')}</select>` : `<b>${esc(r.kommuna || 'Ukendt kommune')}</b>`;
+    $('panel').innerHTML = `<div class="card detail">
+      <button class="back" id="back" type="button">← Alle steder</button>
+      ${ph ? `<img class="ph" id="dPhoto" src="${esc(ph)}" alt="Billede fra indberetningen" style="cursor:zoom-in">` : ''}
+      <div><div class="acts">${pill(r)}${r.source === 'inat' ? '<span class="pill" style="border-color:var(--line)">Fra iNaturalist</span>' : ''}</div>
+        <h3 style="margin-top:6px">${esc(r.place || 'Uden stednavn')}</h3>
+        <div class="hint">Indberettet ${fmt(r.created_at)}${r.accuracy != null ? ` · GPS ±${r.accuracy} m` : ''}</div></div>
+      <div class="facts" style="display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 14px;align-items:center"><span class="hint">Art</span>${spSel}<span class="hint">Kommune</span><div>${komSel}</div></div>
+      ${r.ai_name ? `<div class="hint">AI: ${esc(r.ai_name)}${r.ai_latin ? ' (' + esc(r.ai_latin) + ')' : ''}, sikkerhed ${esc(r.ai_confidence || '–')}</div>` : ''}
+      ${r.description ? `<p style="margin:0;overflow-wrap:anywhere">${esc(r.description)}</p>` : ''}
+      ${isFylg(r) ? `<div class="fylg-note">Fjernet for mere end et år siden. Tag ud og tjek, om planten er kommet tilbage.</div>` : ''}
+      ${r.lat != null ? `<div><a href="https://www.google.com/maps?q=${r.lat},${r.lon}" target="_blank" rel="noopener">Åbn i Google Maps</a></div>` : ''}
+      <div><div class="f">Historik</div><ul class="tl">${tl || '<li class="hint">Ingen historik</li>'}</ul></div>
+      ${ed ? `<div><label class="f" for="note">Note <span class="hint">(valgfri)</span></label><input type="text" id="note" maxlength="300" placeholder="fx gravet op, skærme skåret af"></div>
+        <div class="acts">${btns.map(([k, l]) => `<button class="btn sm" data-k="${k}" type="button">${l}</button>`).join('')}</div>
+        <div class="acts">${confirmDel ? `<span>Slet indberetningen og billedet? Det kan ikke fortrydes.</span><button class="btn sm del ghost" id="delYes" type="button">Ja, slet</button><button class="btn sm ghost" id="delNo" type="button">Fortryd</button>` : `<button class="btn sm ghost del" id="del" type="button">Slet</button>`}</div>
+        <div class="msg err" id="dMsg"></div>`
+      : `<div class="lock">Dette sted hører til ${esc(r.kommuna || 'en ukendt kommune')}. Du kan se historikken, men ${esc(r.kommuna || 'administratoren')} opdaterer.</div>`}
+    </div>`;
+    $('back').onclick = () => { selected = null; render(); };
+    if ($('dPhoto')) $('dPhoto').onclick = () => { $('big').querySelector('img').src = ph; $('big').showModal(); };
+    if (!ed) return;
+    const patch = async body => {
+      const res = await api('/api/admin/reports/' + r.id, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok){ $('dMsg').textContent = d.error || 'Ændringen blev ikke gemt'; return null; }
+      return d;
+    };
+    $('panel').querySelectorAll('[data-k]').forEach(b => b.onclick = async () => {
+      b.disabled = true;
+      const note = $('note').value.trim();
+      const d = await patch({ status: b.dataset.k, note });
+      if (d){ r.status = b.dataset.k; r.status_at = d.at; (r.events ||= []).push({ at: d.at, status: b.dataset.k, by: acc.kommuna === '*' ? 'Admin' : acc.kommuna, note }); render(); renderKom(); }
+      else b.disabled = false;
+    });
+    $('dSp').onchange = async () => { const v = $('dSp').value; if (await patch({ species: v })) { r.species = v; render(); } else $('dSp').value = r.species; };
+    if ($('dKom')) $('dKom').onchange = async () => { const v = $('dKom').value; if (await patch({ kommuna: v })) { r.kommuna = v; render(); renderKom(); } };
+    if ($('del')) $('del').onclick = () => { confirmDel = true; render(); };
+    if ($('delNo')) $('delNo').onclick = () => { confirmDel = false; render(); };
+    if ($('delYes')) $('delYes').onclick = async () => {
+      const res = await api('/api/admin/reports/' + r.id, { method: 'DELETE' });
+      if (res.ok){ reports = reports.filter(x => x.id !== r.id); selected = null; confirmDel = false; render(); renderKom(); }
+      else { const d = await res.json().catch(() => ({})); $('dMsg').textContent = d.error || 'Kunne ikke slette'; }
+    };
+  }
+
+  // ---------- kommunur ----------
+  function renderKom(){
+    if (!acc) return;
+    const ks = [...new Set(reports.map(r => r.kommuna || 'Ukendt kommune'))].sort((a, b) => a.localeCompare(b, 'da'));
+    const me = acc.kommuna;
+    $('ktab').innerHTML = ks.map(k => { const rs = reports.filter(r => (r.kommuna || 'Ukendt kommune') === k); const c = s => rs.filter(r => key(r) === s).length;
+      return `<tr class="${k === me ? 'me' : ''}"><td>${esc(k)}</td><td class="n">${c('frab')}</td><td class="n">${c('byrj')}</td><td class="n">${c('burt')}</td><td class="n">${c('fylg')}</td></tr>`; }).join('') || '<tr><td colspan="5" class="hint">Ingen indberetninger endnu.</td></tr>';
+    const mine = reports.filter(r => me === '*' || r.kommuna === me);
+    const fy = mine.filter(isFylg), nyg = mine.filter(r => r.status === 'frab');
+    const li = arr => arr.slice(0, 30).map(r => `<button class="row" type="button" data-id="${r.id}">${photoOf(r) ? `<img src="${esc(photoOf(r))}" alt="" loading="lazy">` : '<div class="ph"></div>'}<div style="min-width:0"><div class="t">${esc(r.place || r.kommuna || 'Ukendt sted')}</div><div class="m">${SPECIES[r.species]?.fo || ''} · ${fmt(r.status_at || r.created_at)}</div></div>${pill(r)}</button>`).join('');
+    $('todo').innerHTML = `<h3 style="font-size:1.25rem">Til arbejde${me === '*' ? '' : ' i ' + esc(me)}</h3>
+      ${fy.length ? `<div><div class="f">Skal følges op (${fy.length})</div>${li(fy)}</div>` : ''}
+      ${nyg.length ? `<div><div class="f">Nye indberetninger (${nyg.length})</div>${li(nyg)}</div>` : ''}
+      ${!fy.length && !nyg.length ? '<p class="hint" style="margin:0">Intet venter. Se på kortet, om en nabokommune har brug for hjælp.</p>' : ''}`;
+    $('todo').querySelectorAll('[data-id]').forEach(b => b.onclick = () => {
+      selected = b.dataset.id; $('fKom').value = ''; location.hash = '#kort';
+      setTimeout(() => { const r = reports.find(x => x.id === selected); if (r && r.lat != null) big.setView([r.lat, r.lon], 13); render(); }, 80);
+    });
+  }
+
+  // ---------- CSV ----------
+  $('csv').onclick = () => {
+    const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const rows = [['dato', 'art', 'status', 'status_dato', 'foelg_op', 'kommune', 'breddegrad', 'laengdegrad', 'praecision_m', 'sted', 'beskrivelse', 'kilde', 'ai_plante', 'billede', 'historik']]
+      .concat(visible().map(r => [r.created_at, SPECIES[r.species]?.fo, STATUS[r.status] || r.status, r.status_at, isFylg(r) ? 'ja' : '', r.kommuna, r.lat, r.lon, r.accuracy, r.place, r.description, r.source, r.ai_name,
+        r.photo_key ? location.origin + '/photo/' + r.photo_key : r.photo_url,
+        (r.events || []).map(e => `${e.at.slice(0, 10)} ${STATUS[e.status] || e.status} (${e.by})${e.note ? ': ' + e.note : ''}`).join(' | ')]));
+    const blob = new Blob(['﻿' + rows.map(r => r.map(q).join(';')).join('\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `invasive-planter-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+  };
+
+  token ? start() : showLogin();
+})();
+</script>
+</body>
+</html>
