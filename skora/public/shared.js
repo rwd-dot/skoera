@@ -95,5 +95,26 @@ window.IP = (() => {
         </div></article>`;
     }).join('');
   }
-  return { SPECIES, STATUS, GUIDE, FOLLOW_UP_DAYS, img, esc, fmt, isFylg, key, pill, css, baseMap, marker, inatMarker, guideHtml };
+  // iNaturalist: royn fyrst goymsluna á servaranum; svarar hon ikki (t.d. HTTP 429), verða fráboðanirnar heintaðar beinleiðis í kaganum
+  const INAT_TAXA = [['skora', 'Alchemilla mollis'], ['apu', 'Erythranthe guttata'], ['folfod', 'Tussilago farfara']];
+  async function loadInat(server) {
+    try { const r = await server(); if (r.ok) { const d = await r.json(); if ((d.observations || []).length && !d.stale) return d.observations; var old = d.observations; } } catch {}
+    const out = [];
+    for (const [sp, name] of INAT_TAXA) {
+      try {
+        const q = new URLSearchParams({ taxon_name: name, swlat: '61.3', swlng: '-7.8', nelat: '62.45', nelng: '-6.2', per_page: 200, order_by: 'observed_on', order: 'desc' });
+        const d = await (await fetch('https://api.inaturalist.org/v1/observations?' + q)).json();
+        for (const o of d.results || []) {
+          const c = o.geojson?.coordinates; if (!c) continue;
+          const p = o.photos?.[0]?.url || null;
+          out.push({ id: o.id, sp, url: o.uri || `https://www.inaturalist.org/observations/${o.id}`, lat: c[1], lon: c[0],
+            obscured: Boolean(o.obscured || o.geoprivacy === 'obscured'), observedOn: o.observed_on || null, grade: o.quality_grade || null,
+            taxon: o.taxon?.name || null, user: o.user?.login || null, place: o.place_guess || null,
+            photo: p ? p.replace('/square.', '/small.') : null, photoLarge: p ? p.replace('/square.', '/medium.') : null });
+        }
+      } catch {}
+    }
+    return out.length ? out : (old || []);
+  }
+  return { SPECIES, STATUS, GUIDE, FOLLOW_UP_DAYS, img, esc, fmt, isFylg, key, pill, css, baseMap, marker, inatMarker, guideHtml, loadInat };
 })();
