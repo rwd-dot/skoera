@@ -51,8 +51,8 @@
         <div class="f">3. Hvar veksur hon?</div>
         <div class="loc" id="loc">
           <div class="ldot"></div>
-          <div class="txt"><div id="locMain">Finni staðið…</div><div class="hint" id="locSub"></div></div>
-          <button type="button" class="linkbtn" id="locRetry">Royn aftur</button>
+          <div class="txt"><div id="locMain">Vel hvar plantan veksur</div><div class="hint" id="locSub">Trýst á knøttin, ella trýst á kortið</div></div>
+          <button type="button" class="btn sm" id="locRetry">Brúka mítt stað</button>
         </div>
         <div class="minimap" id="minimap"></div>
         <div class="hint">Trýst á kortið fyri at flyta prikkin, um staðið ikki er rætt.</div>
@@ -287,7 +287,9 @@
     $('shot').classList.remove('has'); $('aiBox').hidden = true; $('aiBtnWrap').hidden = true;
     $('desc').value = ''; $('place').value = '';
     if (tsWidget !== null){ turnstile.reset(tsWidget); tsToken = ''; }
-    $('thanks').hidden = true; $('form').hidden = false; coords = null; locate(); validate();
+    $('thanks').hidden = true; $('form').hidden = false; coords = null;
+    if (pin) { pin.remove(); pin = null; }
+    $('loc').className = 'loc'; $('locMain').textContent = 'Vel hvar plantan veksur'; $('locSub').textContent = 'Trýst á knøttin, ella trýst á kortið'; validate();
     setTimeout(() => mini && mini.invalidateSize(), 30);
   };
 
@@ -337,7 +339,7 @@
     if (a.dataset.f){ $('fSp').value = a.dataset.f; setTimeout(() => renderMap(true), 80); }
   });
 
-  locate(); validate(); route();
+  validate(); route();
 })();
 </script>
 </body>
