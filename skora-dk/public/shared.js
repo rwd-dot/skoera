@@ -105,5 +105,26 @@ window.IP = (() => {
         </div></article>`;
     }).join('') + `<p class="hint">Kilde: <a href="${SOURCE}" target="_blank" rel="noopener">Miljøstyrelsen – Invasive arter, grundbog</a></p>`;
   }
-  return { SPECIES, STATUS, GUIDE, FOLLOW_UP_DAYS, img, esc, fmt, isFylg, key, pill, css, baseMap, marker, inatMarker, guideHtml };
+  // iNaturalist: prøv serverens cache først; svarer den ikke (fx HTTP 429), hentes fundene direkte fra iNaturalist i browseren
+  const INAT_TAXA = [['bjorneklo', 1557658], ['rose', 83653], ['pileurt', 914922]];
+  async function loadInat(server) {
+    try { const r = await server(); if (r.ok) { const d = await r.json(); if ((d.observations || []).length) return d.observations; } } catch {}
+    const out = [];
+    for (const [sp, id] of INAT_TAXA) {
+      try {
+        const q = new URLSearchParams({ taxon_id: id, place_id: 8051, per_page: 200, order_by: 'observed_on', order: 'desc' });
+        const d = await (await fetch('https://api.inaturalist.org/v1/observations?' + q)).json();
+        for (const o of d.results || []) {
+          const c = o.geojson?.coordinates; if (!c) continue;
+          const p = o.photos?.[0]?.url || null;
+          out.push({ id: o.id, sp, url: o.uri || `https://www.inaturalist.org/observations/${o.id}`, lat: c[1], lon: c[0],
+            obscured: Boolean(o.obscured || o.geoprivacy === 'obscured'), observedOn: o.observed_on || null, grade: o.quality_grade || null,
+            taxon: o.taxon?.name || null, user: o.user?.login || null, place: o.place_guess || null,
+            photo: p ? p.replace('/square.', '/small.') : null, photoLarge: p ? p.replace('/square.', '/medium.') : null });
+        }
+      } catch {}
+    }
+    return out;
+  }
+  return { SPECIES, STATUS, GUIDE, FOLLOW_UP_DAYS, img, esc, fmt, isFylg, key, pill, css, baseMap, marker, inatMarker, guideHtml, loadInat };
 })();
